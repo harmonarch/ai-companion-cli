@@ -10,6 +10,7 @@ export interface ToolDescriptor {
 export interface ToolExecutionRecord {
   id: string;
   sessionId: string;
+  runId?: string;
   messageId?: string;
   toolName: string;
   riskLevel: ToolRiskLevel;

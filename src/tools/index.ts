@@ -16,6 +16,7 @@ interface ToolDefinition<TSchema extends ZodTypeAny = ZodTypeAny> extends ToolDe
 export interface ToolRuntimeContext {
   workspaceRoot: string;
   sessionId: string;
+  runId: string;
   messageId: string;
   toolExecutionRepository: ToolExecutionRepository;
   onExecutionUpdate(execution: ToolExecutionRecord): void;
@@ -50,6 +51,7 @@ async function runTool(
   const initialStatus = definition.riskLevel === "medium" ? "pending" : "running";
   let execution = context.toolExecutionRepository.create({
     sessionId: context.sessionId,
+    runId: context.runId,
     messageId: context.messageId,
     toolName: definition.name,
     riskLevel: definition.riskLevel,

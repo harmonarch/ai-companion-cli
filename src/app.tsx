@@ -10,6 +10,7 @@ import { SessionStore, type SessionSnapshot } from "./controller/session-store.j
 import { parseSlashCommand } from "./controller/slash-commands.js";
 import { loadConfig } from "./infra/config/load-config.js";
 import { MessageRepository } from "./infra/repositories/message-repository.js";
+import { RunRepository } from "./infra/repositories/run-repository.js";
 import { SessionRepository } from "./infra/repositories/session-repository.js";
 import { ToolExecutionRepository } from "./infra/repositories/tool-execution-repository.js";
 import { openDatabase } from "./infra/storage/db.js";
@@ -56,6 +57,7 @@ export function App({ initialSessionId }: { initialSessionId?: string }) {
       runMigrations(db);
       const sessionRepository = new SessionRepository(db);
       const messageRepository = new MessageRepository(db);
+      const runRepository = new RunRepository(db);
       const toolExecutionRepository = new ToolExecutionRepository(db);
       const sessionStore = new SessionStore(
         sessionRepository,
@@ -71,6 +73,7 @@ export function App({ initialSessionId }: { initialSessionId?: string }) {
         deepseekProvider,
         sessionStore,
         messageRepository,
+        runRepository,
         toolExecutionRepository,
       );
 

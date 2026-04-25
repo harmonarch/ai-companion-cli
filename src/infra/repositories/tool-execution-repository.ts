@@ -6,6 +6,7 @@ function mapToolExecution(row: Record<string, unknown>): ToolExecutionRecord {
   return {
     id: String(row.id),
     sessionId: String(row.session_id),
+    runId: row.run_id ? String(row.run_id) : undefined,
     messageId: row.message_id ? String(row.message_id) : undefined,
     toolName: String(row.tool_name),
     riskLevel: row.risk_level as ToolExecutionRecord["riskLevel"],
@@ -47,10 +48,10 @@ export class ToolExecutionRepository {
 
     this.db.prepare(`
       INSERT INTO tool_executions (
-        id, session_id, message_id, tool_name, risk_level, status, summary,
+        id, session_id, run_id, message_id, tool_name, risk_level, status, summary,
         input_json, output_json, created_at, updated_at
       ) VALUES (
-        @id, @sessionId, @messageId, @toolName, @riskLevel, @status, @summary,
+        @id, @sessionId, @runId, @messageId, @toolName, @riskLevel, @status, @summary,
         @inputJson, @outputJson, @createdAt, @updatedAt
       )
     `).run({

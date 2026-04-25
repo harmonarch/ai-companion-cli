@@ -2,6 +2,7 @@ import { AIMessageChunk } from "@langchain/core/messages";
 import { createRuntimeTools } from "../tools/index.js";
 import type { AppConfig } from "../infra/config/load-config.js";
 import { MessageRepository } from "../infra/repositories/message-repository.js";
+import { RunRepository } from "../infra/repositories/run-repository.js";
 import type { ToolExecutionRepository } from "../infra/repositories/tool-execution-repository.js";
 import { buildGraph, buildGraphInput } from "../graph/chat-graph.js";
 import type { ProviderDefinition } from "../providers/types.js";
@@ -27,6 +28,7 @@ export class ChatController {
     private readonly provider: ProviderDefinition,
     private readonly sessionStore: SessionStore,
     private readonly messageRepository: MessageRepository,
+    private readonly runRepository: RunRepository,
     private readonly toolExecutionRepository: ToolExecutionRepository,
   ) {}
 
@@ -60,9 +62,18 @@ export class ChatController {
     });
     handlers.onAssistantMessage(assistantMessage);
 
+    const run = this.runRepository.create({
+      sessionId: session.id,
+      userMessageId: userMessage.id,
+      assistantMessageId: assistantMessage.id,
+      provider: session.provider,
+      model: session.model,
+    });
+
     const runtimeTools = createRuntimeTools({
       workspaceRoot: this.config.workspaceRoot,
       sessionId: session.id,
+      runId: run.id,
       messageId: assistantMessage.id,
       toolExecutionRepository: this.toolExecutionRepository,
       onExecutionUpdate: handlers.onToolExecution,
@@ -75,6 +86,7 @@ export class ChatController {
 
     let assistantText = "";
     let fallbackText = "";
+    let firstTokenRecorded = false;
     const buffer = new StreamBuffer((chunk) => {
       assistantText += chunk;
       handlers.onAssistantChunk(assistantMessage.id, chunk);
@@ -86,6 +98,10 @@ export class ChatController {
           case "on_chat_model_stream": {
             const text = extractChunkText(event.data?.chunk);
             if (text) {
+              if (!firstTokenRecorded) {
+                this.runRepository.markFirstToken(run.id);
+                firstTokenRecorded = true;
+              }
               buffer.push(text);
             }
             break;
@@ -93,6 +109,10 @@ export class ChatController {
           case "on_chat_model_end": {
             const outputText = extractChunkText(event.data?.output);
             if (outputText) {
+              if (!firstTokenRecorded) {
+                this.runRepository.markFirstToken(run.id);
+                firstTokenRecorded = true;
+              }
               fallbackText += outputText;
             }
             break;
@@ -111,12 +131,18 @@ export class ChatController {
       this.messageRepository.updateContent(assistantMessage.id, assistantText, {});
       this.sessionStore.touchSession(session.id);
       handlers.onAssistantCompleted(assistantMessage.id, assistantText);
+      this.runRepository.markCompleted(run.id);
     } catch (error) {
       buffer.close();
       const errorMessage = error instanceof Error ? error.message : String(error);
       const persistedContent = assistantText || `Error: ${errorMessage}`;
       this.messageRepository.updateContent(assistantMessage.id, persistedContent, { error: errorMessage });
       handlers.onAssistantCompleted(assistantMessage.id, persistedContent);
+      try {
+        this.runRepository.markFailed(run.id, errorMessage);
+      } catch {
+        // Preserve the original run failure.
+      }
       throw error;
     }
   }
