@@ -70,20 +70,6 @@ export class ChatController {
       model: session.model,
     });
 
-    const runtimeTools = createRuntimeTools({
-      workspaceRoot: this.config.workspaceRoot,
-      sessionId: session.id,
-      runId: run.id,
-      messageId: assistantMessage.id,
-      toolExecutionRepository: this.toolExecutionRepository,
-      onExecutionUpdate: handlers.onToolExecution,
-      requestConfirmation: handlers.requestConfirmation,
-    });
-
-    const model = this.provider.createChatModel(this.config, session);
-    const graph = buildGraph(model, runtimeTools);
-    const history = this.messageRepository.listBySession(session.id).filter((message) => message.id !== assistantMessage.id);
-
     let assistantText = "";
     let fallbackText = "";
     let firstTokenRecorded = false;
@@ -93,6 +79,20 @@ export class ChatController {
     });
 
     try {
+      const runtimeTools = createRuntimeTools({
+        workspaceRoot: this.config.workspaceRoot,
+        sessionId: session.id,
+        runId: run.id,
+        messageId: assistantMessage.id,
+        toolExecutionRepository: this.toolExecutionRepository,
+        onExecutionUpdate: handlers.onToolExecution,
+        requestConfirmation: handlers.requestConfirmation,
+      });
+
+      const model = this.provider.createChatModel(this.config, session);
+      const graph = buildGraph(model, runtimeTools);
+      const history = this.messageRepository.listBySession(session.id).filter((message) => message.id !== assistantMessage.id);
+
       for await (const event of graph.streamEvents(buildGraphInput(history, this.config.workspaceRoot), { version: "v2" })) {
         switch (event.event) {
           case "on_chat_model_stream": {
