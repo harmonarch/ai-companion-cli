@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Box, Text, useApp, useInput } from "ink";
 import pc from "picocolors";
 import { ChatList } from "./components/ChatList.js";
+import { HorizontalDivider } from "./components/HorizontalDivider.js";
 import { PromptInput } from "./components/PromptInput.js";
 import { SessionList } from "./components/SessionList.js";
 import { StatusBar } from "./components/StatusBar.js";
@@ -374,7 +375,8 @@ export function App({ initialSessionId }: { initialSessionId?: string }) {
         ) : null}
         <ChatList messages={activeSnapshot.messages} toolExecutions={activeSnapshot.toolExecutions} />
       </Box>
-      <Box marginTop={1}>
+      <Box marginTop={1} flexDirection="column">
+        <HorizontalDivider />
         <PromptInput
           value={input}
           onChange={setInput}
@@ -384,6 +386,7 @@ export function App({ initialSessionId }: { initialSessionId?: string }) {
           disabled={isStreaming || sessionsVisible || Boolean(activeConfirmation)}
           disabledReason={inputDisabledReason}
         />
+        <HorizontalDivider />
       </Box>
     </Box>
   );
