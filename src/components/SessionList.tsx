@@ -7,15 +7,18 @@ import { sanitizeSingleLineText } from "../utils/sanitize-text.js";
 export function SessionList({
   sessions,
   selectedIndex,
+  deleteConfirmSessionId,
 }: {
   sessions: SessionSummary[];
   selectedIndex: number;
+  deleteConfirmSessionId: string | null;
 }) {
   return (
     <Box flexDirection="column">
       <Text>{pc.gray("sessions")}</Text>
       {sessions.map((session, index) => {
         const selected = index === selectedIndex;
+        const confirmingDelete = session.id === deleteConfirmSessionId;
         const safeTitle = sanitizeSingleLineText(session.title, 80);
         const safeProvider = sanitizeSingleLineText(session.provider, 40);
         const safeModel = sanitizeSingleLineText(session.model, 40);
@@ -24,10 +27,11 @@ export function SessionList({
           <Text key={session.id}>
             {selected ? pc.cyan(">") : " "} {selected ? pc.whiteBright(safeTitle) : safeTitle}{" "}
             {pc.gray(`· ${session.messageCount} msgs · ${safeProvider}/${safeModel}`)}
+            {confirmingDelete ? pc.yellow(" · Enter 删除 / Esc 取消") : ""}
           </Text>
         );
       })}
-      <Text>{pc.gray("↑ ↓ move · enter switch · esc close")}</Text>
+      <Text>{pc.gray(deleteConfirmSessionId ? "Enter 删除 / Esc 取消" : "↑ ↓ move · enter switch · d delete · esc close")}</Text>
     </Box>
   );
 }

@@ -73,4 +73,8 @@ export class MessageRepository {
       UPDATE messages SET content = ?, metadata_json = ? WHERE id = ?
     `).run(content, JSON.stringify(metadata ?? {}), messageId);
   }
+
+  deleteBySession(sessionId: string) {
+    this.db.prepare(`DELETE FROM messages WHERE session_id = ?`).run(sessionId);
+  }
 }

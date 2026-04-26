@@ -18,6 +18,7 @@ interface UseSubmitHandlerOptions {
   setIsStreaming: Dispatch<SetStateAction<boolean>>;
   setPendingConfirmations: Dispatch<SetStateAction<PendingConfirmation[]>>;
   setSelectedSessionIndex: Dispatch<SetStateAction<number>>;
+  setSessionDeleteConfirmId: Dispatch<SetStateAction<string | null>>;
   setSessions: Dispatch<SetStateAction<SessionSummary[]>>;
   setSessionsVisible: Dispatch<SetStateAction<boolean>>;
   setSnapshot: Dispatch<SetStateAction<SessionSnapshot | null>>;
@@ -34,6 +35,7 @@ export function useSubmitHandler({
   setIsStreaming,
   setPendingConfirmations,
   setSelectedSessionIndex,
+  setSessionDeleteConfirmId,
   setSessions,
   setSessionsVisible,
   setSnapshot,
@@ -60,6 +62,7 @@ export function useSubmitHandler({
           sessionStore,
           exit,
           setHelpVisible,
+          setSessionDeleteConfirmId,
           setSnapshot,
           setSessions,
           setSessionsVisible,
@@ -141,6 +144,7 @@ export function useSubmitHandler({
     setIsStreaming,
     setPendingConfirmations,
     setSelectedSessionIndex,
+    setSessionDeleteConfirmId,
     setSessions,
     setSessionsVisible,
     setSnapshot,

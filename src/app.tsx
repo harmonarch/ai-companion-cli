@@ -38,6 +38,7 @@ export function App({ initialSessionId }: { initialSessionId?: string }) {
   const [helpVisible, setHelpVisible] = useState(false);
   const [sessionsVisible, setSessionsVisible] = useState(false);
   const [selectedSessionIndex, setSelectedSessionIndex] = useState(0);
+  const [sessionDeleteConfirmId, setSessionDeleteConfirmId] = useState<string | null>(null);
   const [pendingConfirmations, setPendingConfirmations] = useState<PendingConfirmation[]>([]);
 
   useEffect(() => {
@@ -85,13 +86,17 @@ export function App({ initialSessionId }: { initialSessionId?: string }) {
 
   useAppInput({
     activeConfirmation,
+    activeSnapshot: snapshot,
     helpVisible,
+    sessionDeleteConfirmId,
     sessionsVisible,
     sessions,
     selectedSessionIndex,
     sessionStore: services.sessionStore,
     setHelpVisible,
     setPendingConfirmations,
+    setSessionDeleteConfirmId,
+    setSessions,
     setStatusMessage,
     setSessionsVisible,
     setSelectedSessionIndex,
@@ -108,6 +113,7 @@ export function App({ initialSessionId }: { initialSessionId?: string }) {
     setIsStreaming,
     setPendingConfirmations,
     setSelectedSessionIndex,
+    setSessionDeleteConfirmId,
     setSessions,
     setSessionsVisible,
     setSnapshot,
@@ -167,7 +173,11 @@ export function App({ initialSessionId }: { initialSessionId?: string }) {
         ) : null}
         {sessionsVisible ? (
           <Box marginBottom={1}>
-            <SessionList sessions={sessions} selectedIndex={selectedSessionIndex} />
+            <SessionList
+              sessions={sessions}
+              selectedIndex={selectedSessionIndex}
+              deleteConfirmSessionId={sessionDeleteConfirmId}
+            />
           </Box>
         ) : null}
         <ChatList messages={activeSnapshot.messages} toolExecutions={activeSnapshot.toolExecutions} />

@@ -67,6 +67,10 @@ export class RunRepository {
     return row ? mapRun(row) : null;
   }
 
+  deleteBySession(sessionId: string) {
+    this.db.prepare(`DELETE FROM runs WHERE session_id = ?`).run(sessionId);
+  }
+
   markFirstToken(runId: string, at = new Date().toISOString()) {
     this.db.prepare(`
       UPDATE runs

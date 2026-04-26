@@ -8,6 +8,7 @@ interface HandleAppCommandOptions {
   sessionStore: SessionStore;
   exit(): void;
   setHelpVisible: Dispatch<SetStateAction<boolean>>;
+  setSessionDeleteConfirmId: Dispatch<SetStateAction<string | null>>;
   setSnapshot: Dispatch<SetStateAction<SessionSnapshot | null>>;
   setSessions: Dispatch<SetStateAction<SessionSummary[]>>;
   setSessionsVisible: Dispatch<SetStateAction<boolean>>;
@@ -20,6 +21,7 @@ export async function handleAppCommand({
   sessionStore,
   exit,
   setHelpVisible,
+  setSessionDeleteConfirmId,
   setSnapshot,
   setSessions,
   setSessionsVisible,
@@ -29,6 +31,7 @@ export async function handleAppCommand({
   switch (command.type) {
     case "new": {
       const nextSnapshot = sessionStore.createSession();
+      setSessionDeleteConfirmId(null);
       setSnapshot(nextSnapshot);
       setSessions(sessionStore.listSessions());
       setStatusMessage("Created a new session.");
@@ -36,6 +39,7 @@ export async function handleAppCommand({
     }
     case "sessions": {
       setHelpVisible(false);
+      setSessionDeleteConfirmId(null);
       setSessions(sessionStore.listSessions());
       setSelectedSessionIndex(0);
       setSessionsVisible(true);
@@ -44,6 +48,7 @@ export async function handleAppCommand({
     case "switch": {
       if (!command.target) {
         setHelpVisible(false);
+        setSessionDeleteConfirmId(null);
         setSessions(sessionStore.listSessions());
         setSelectedSessionIndex(0);
         setSessionsVisible(true);
@@ -63,6 +68,7 @@ export async function handleAppCommand({
       }
 
       try {
+        setSessionDeleteConfirmId(null);
         setSnapshot(sessionStore.loadSession(target.id));
         setStatusMessage(`Switched to ${target.title}.`);
       } catch (error) {
@@ -72,6 +78,7 @@ export async function handleAppCommand({
       return;
     }
     case "help": {
+      setSessionDeleteConfirmId(null);
       setSessionsVisible(false);
       setHelpVisible(true);
       setStatusMessage("Help opened. Press Esc to close.");

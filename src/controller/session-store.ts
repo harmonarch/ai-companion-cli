@@ -1,4 +1,5 @@
 import type { MessageRepository } from "../infra/repositories/message-repository.js";
+import type { RunRepository } from "../infra/repositories/run-repository.js";
 import type { SessionRepository } from "../infra/repositories/session-repository.js";
 import type { ToolExecutionRepository } from "../infra/repositories/tool-execution-repository.js";
 import type { ChatMessage } from "../types/chat.js";
@@ -15,6 +16,7 @@ export class SessionStore {
   constructor(
     private readonly sessionRepository: SessionRepository,
     private readonly messageRepository: MessageRepository,
+    private readonly runRepository: RunRepository,
     private readonly toolExecutionRepository: ToolExecutionRepository,
     private readonly defaults: { provider: string; model: string },
   ) {}
@@ -58,6 +60,13 @@ export class SessionStore {
       messages: this.messageRepository.listBySession(sessionId).filter((message) => message.content.length > 0),
       toolExecutions: this.toolExecutionRepository.listBySession(sessionId),
     };
+  }
+
+  deleteSession(sessionId: string) {
+    this.runRepository.deleteBySession(sessionId);
+    this.toolExecutionRepository.deleteBySession(sessionId);
+    this.messageRepository.deleteBySession(sessionId);
+    this.sessionRepository.delete(sessionId);
   }
 
   touchSession(sessionId: string) {

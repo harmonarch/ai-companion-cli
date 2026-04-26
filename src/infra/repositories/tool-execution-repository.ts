@@ -95,4 +95,8 @@ export class ToolExecutionRepository {
     const row = this.db.prepare(`SELECT * FROM tool_executions WHERE id = ?`).get(recordId) as Record<string, unknown> | undefined;
     return row ? mapToolExecution(row) : null;
   }
+
+  deleteBySession(sessionId: string) {
+    this.db.prepare(`DELETE FROM tool_executions WHERE session_id = ?`).run(sessionId);
+  }
 }

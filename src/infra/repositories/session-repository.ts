@@ -64,4 +64,8 @@ export class SessionRepository {
       UPDATE sessions SET title = ?, updated_at = ? WHERE id = ?
     `).run(title, new Date().toISOString(), sessionId);
   }
+
+  delete(sessionId: string) {
+    this.db.prepare(`DELETE FROM sessions WHERE id = ?`).run(sessionId);
+  }
 }

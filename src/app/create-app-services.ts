@@ -28,6 +28,7 @@ export function createAppServices(): AppServiceBundle {
     const sessionStore = new SessionStore(
       sessionRepository,
       messageRepository,
+      runRepository,
       toolExecutionRepository,
       {
         provider: config.defaultProvider,
