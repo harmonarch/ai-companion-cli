@@ -6,7 +6,7 @@ import type { SessionSummary } from "../types/session.js";
 interface HandleAppCommandOptions {
   command: SlashCommand;
   sessionStore: SessionStore;
-  exit(): void;
+  onExitRequested(): void;
   setHelpVisible: Dispatch<SetStateAction<boolean>>;
   setSessionDeleteConfirmId: Dispatch<SetStateAction<string | null>>;
   setSnapshot: Dispatch<SetStateAction<SessionSnapshot | null>>;
@@ -19,7 +19,7 @@ interface HandleAppCommandOptions {
 export async function handleAppCommand({
   command,
   sessionStore,
-  exit,
+  onExitRequested,
   setHelpVisible,
   setSessionDeleteConfirmId,
   setSnapshot,
@@ -85,7 +85,7 @@ export async function handleAppCommand({
       return;
     }
     case "exit": {
-      exit();
+      onExitRequested();
       return;
     }
     case "unknown": {

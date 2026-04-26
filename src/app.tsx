@@ -22,7 +22,13 @@ interface AppServices {
   error: string | null;
 }
 
-export function App({ initialSessionId }: { initialSessionId?: string }) {
+export function App({
+  initialSessionId,
+  onExitRequested,
+}: {
+  initialSessionId?: string;
+  onExitRequested?: () => void;
+}) {
   const { exit } = useApp();
   const [services, setServices] = useState<AppServices>({
     sessionStore: null,
@@ -106,7 +112,7 @@ export function App({ initialSessionId }: { initialSessionId?: string }) {
   const handleSubmit = useSubmitHandler({
     activeSnapshot: snapshot,
     controller: services.controller,
-    exit,
+    onExitRequested: onExitRequested ?? exit,
     sessionStore: services.sessionStore,
     setHelpVisible,
     setInput,

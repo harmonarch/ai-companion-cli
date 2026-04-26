@@ -11,7 +11,7 @@ import type { ToolConfirmationRequest, ToolExecutionRecord } from "../types/tool
 interface UseSubmitHandlerOptions {
   activeSnapshot: SessionSnapshot | null;
   controller: ChatController | null;
-  exit(): void;
+  onExitRequested(): void;
   sessionStore: SessionStore | null;
   setHelpVisible: Dispatch<SetStateAction<boolean>>;
   setInput: Dispatch<SetStateAction<string>>;
@@ -28,7 +28,7 @@ interface UseSubmitHandlerOptions {
 export function useSubmitHandler({
   activeSnapshot,
   controller,
-  exit,
+  onExitRequested,
   sessionStore,
   setHelpVisible,
   setInput,
@@ -60,7 +60,7 @@ export function useSubmitHandler({
         await handleAppCommand({
           command,
           sessionStore,
-          exit,
+          onExitRequested,
           setHelpVisible,
           setSessionDeleteConfirmId,
           setSnapshot,
@@ -137,7 +137,7 @@ export function useSubmitHandler({
   }, [
     activeSnapshot,
     controller,
-    exit,
+    onExitRequested,
     sessionStore,
     setHelpVisible,
     setInput,

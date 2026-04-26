@@ -9,7 +9,29 @@ cli
   .command("[prompt]", "Launch AI Companion CLI")
   .option("--session <id>", "Open a specific session by id")
   .action((_prompt, options) => {
-    render(React.createElement(App, { initialSessionId: options.session }));
+    const interactive = Boolean(process.stdout.isTTY && process.stdin.isTTY);
+    let exitRequested = false;
+    let renderResult: ReturnType<typeof render> | null = null;
+
+    const requestExit = () => {
+      if (exitRequested) {
+        return;
+      }
+
+      exitRequested = true;
+      renderResult?.clear();
+      renderResult?.unmount();
+    };
+
+    renderResult = render(
+      React.createElement(App, {
+        initialSessionId: options.session,
+        onExitRequested: requestExit,
+      }),
+      {
+        alternateScreen: interactive,
+      },
+    );
   });
 
 cli.help();

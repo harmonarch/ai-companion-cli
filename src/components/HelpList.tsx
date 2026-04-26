@@ -7,7 +7,7 @@ const helpItems = [
   ["/sessions", "open the session list"],
   ["/switch <n|id>", "switch to a session"],
   ["/help", "open this help panel"],
-  ["/exit", "exit the app"],
+  ["/exit", "exit the app and hide the current screen"],
 ] as const;
 
 export function HelpList() {
