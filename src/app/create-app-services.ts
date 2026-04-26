@@ -7,6 +7,7 @@ import { SessionRepository } from "../infra/repositories/session-repository.js";
 import { ToolExecutionRepository } from "../infra/repositories/tool-execution-repository.js";
 import { openDatabase } from "../infra/storage/db.js";
 import { runMigrations } from "../infra/storage/migrate.js";
+import { PromptLoader } from "../prompts/loader.js";
 import { deepseekProvider } from "../providers/deepseek-provider.js";
 
 export interface AppServiceBundle {
@@ -35,9 +36,14 @@ export function createAppServices(): AppServiceBundle {
         model: config.defaultModel,
       },
     );
+    const providers = {
+      deepseek: deepseekProvider,
+    };
+    const promptLoader = new PromptLoader(config);
     const controller = new ChatController(
       config,
-      deepseekProvider,
+      providers,
+      promptLoader,
       sessionStore,
       messageRepository,
       runRepository,

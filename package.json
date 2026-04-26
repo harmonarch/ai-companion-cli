@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "tsx src/cli.ts",
-    "build": "tsup",
+    "build": "tsup && mkdir -p dist/templates && cp src/prompts/templates/*.md dist/templates/",
     "typecheck": "tsc --noEmit",
     "start": "node dist/cli.js"
   },

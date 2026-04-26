@@ -3,12 +3,26 @@ import { homedir } from "node:os";
 import path from "node:path";
 import TOML from "toml";
 import { z } from "zod";
+import type { ProviderId } from "../../providers/types.js";
 
 const rawConfigSchema = z.object({
   defaultProvider: z.literal("deepseek").optional(),
   defaultModel: z.string().min(1).optional(),
   databasePath: z.string().min(1).optional(),
+  prompts: z.object({
+    defaultSystemFile: z.string().min(1).optional(),
+    providers: z.object({
+      deepseek: z.string().min(1).optional(),
+    }).partial().optional(),
+  }).partial().optional(),
 }).partial();
+
+type RawConfig = z.infer<typeof rawConfigSchema>;
+
+export interface PromptConfig {
+  defaultSystemFile?: string;
+  providers: Partial<Record<ProviderId, string>>;
+}
 
 export interface AppConfig {
   defaultProvider: "deepseek";
@@ -17,6 +31,7 @@ export interface AppConfig {
   databasePath: string;
   workspaceRoot: string;
   deepseekApiKey?: string;
+  prompts: PromptConfig;
 }
 
 function getConfigCandidates() {
@@ -27,7 +42,7 @@ function getConfigCandidates() {
   ].filter((candidate): candidate is string => Boolean(candidate));
 }
 
-function readTomlConfig() {
+function readTomlConfig(): { config: RawConfig; configDir?: string } {
   for (const candidate of getConfigCandidates()) {
     if (!existsSync(candidate)) {
       continue;
@@ -35,18 +50,24 @@ function readTomlConfig() {
 
     try {
       const parsed = TOML.parse(readFileSync(candidate, "utf8"));
-      return rawConfigSchema.parse(parsed);
+      return {
+        config: rawConfigSchema.parse(parsed),
+        configDir: path.dirname(candidate),
+      };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(`Failed to parse config file ${candidate}: ${message}`);
     }
   }
 
-  return {};
+  return {
+    config: {},
+    configDir: undefined,
+  };
 }
 
 export function loadConfig(): AppConfig {
-  const fileConfig = readTomlConfig();
+  const { config: fileConfig, configDir } = readTomlConfig();
 
   return {
     defaultProvider: "deepseek",
@@ -55,5 +76,23 @@ export function loadConfig(): AppConfig {
     databasePath: process.env.AI_COMPANION_DB_PATH ?? fileConfig.databasePath ?? path.join(homedir(), ".ai-companion", "ai-companion.db"),
     workspaceRoot: process.cwd(),
     deepseekApiKey: process.env.DEEPSEEK_API_KEY,
+    prompts: {
+      defaultSystemFile: resolveConfigPath(configDir, fileConfig.prompts?.defaultSystemFile),
+      providers: {
+        deepseek: resolveConfigPath(configDir, fileConfig.prompts?.providers?.deepseek),
+      },
+    },
   };
+}
+
+function resolveConfigPath(configDir: string | undefined, filePath: string | undefined) {
+  if (!filePath) {
+    return undefined;
+  }
+
+  if (path.isAbsolute(filePath) || !configDir) {
+    return filePath;
+  }
+
+  return path.resolve(configDir, filePath);
 }

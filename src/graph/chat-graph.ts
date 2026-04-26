@@ -29,16 +29,8 @@ export function buildGraph(model: ChatOpenAI, tools: unknown[]) {
     .compile();
 }
 
-export function buildGraphInput(messages: ChatMessage[], workspaceRoot: string) {
-  const history: BaseMessage[] = [
-    new SystemMessage([
-      "You are AI Companion CLI, a terminal AI chat assistant.",
-      `The workspace root is: ${workspaceRoot}`,
-      "Use tools only when they materially help answer the user.",
-      "Prefer low-risk workspace tools before remote fetches.",
-      "When a tool result is enough, answer concisely and cite concrete paths when relevant.",
-    ].join(" ")),
-  ];
+export function buildGraphInput(messages: ChatMessage[], systemPrompt: string) {
+  const history: BaseMessage[] = [new SystemMessage(systemPrompt)];
 
   for (const message of messages) {
     if (message.role === "user") {

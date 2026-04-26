@@ -25,4 +25,9 @@ export const deepseekProvider: ProviderDefinition = {
       },
     });
   },
+  resolveSystemPrompt({ config, promptLoader }) {
+    return promptLoader.load("deepseek", {
+      workspaceRoot: config.workspaceRoot,
+    });
+  },
 };

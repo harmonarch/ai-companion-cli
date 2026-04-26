@@ -1,11 +1,12 @@
 import { AIMessageChunk } from "@langchain/core/messages";
-import { createRuntimeTools } from "../tools/index.js";
 import type { AppConfig } from "../infra/config/load-config.js";
 import { MessageRepository } from "../infra/repositories/message-repository.js";
 import { RunRepository } from "../infra/repositories/run-repository.js";
 import type { ToolExecutionRepository } from "../infra/repositories/tool-execution-repository.js";
 import { buildGraph, buildGraphInput } from "../graph/chat-graph.js";
-import type { ProviderDefinition } from "../providers/types.js";
+import type { PromptLoader } from "../prompts/loader.js";
+import type { ProviderDefinition, ProviderId } from "../providers/types.js";
+import { createRuntimeTools } from "../tools/index.js";
 import type { ChatMessage } from "../types/chat.js";
 import type { SessionRecord } from "../types/session.js";
 import type { ToolConfirmationRequest, ToolExecutionRecord } from "../types/tool.js";
@@ -25,7 +26,8 @@ interface SendMessageHandlers {
 export class ChatController {
   constructor(
     private readonly config: AppConfig,
-    private readonly provider: ProviderDefinition,
+    private readonly providers: Record<ProviderId, ProviderDefinition>,
+    private readonly promptLoader: PromptLoader,
     private readonly sessionStore: SessionStore,
     private readonly messageRepository: MessageRepository,
     private readonly runRepository: RunRepository,
@@ -89,11 +91,21 @@ export class ChatController {
         requestConfirmation: handlers.requestConfirmation,
       });
 
-      const model = this.provider.createChatModel(this.config, session);
+      const provider = this.providers[session.provider as ProviderId];
+      if (!provider) {
+        throw new Error(`Unsupported provider: ${session.provider}`);
+      }
+
+      const model = provider.createChatModel(this.config, session);
       const graph = buildGraph(model, runtimeTools);
       const history = this.messageRepository.listBySession(session.id).filter((message) => message.id !== assistantMessage.id);
+      const systemPrompt = provider.resolveSystemPrompt({
+        config: this.config,
+        promptLoader: this.promptLoader,
+        session,
+      });
 
-      for await (const event of graph.streamEvents(buildGraphInput(history, this.config.workspaceRoot), { version: "v2" })) {
+      for await (const event of graph.streamEvents(buildGraphInput(history, systemPrompt), { version: "v2" })) {
         switch (event.event) {
           case "on_chat_model_stream": {
             const text = extractChunkText(event.data?.chunk);
