@@ -1,28 +1,11 @@
 import crypto from "node:crypto";
-import type Database from "better-sqlite3";
-import type { RunRecord } from "../../types/run.js";
-
-function mapRun(row: Record<string, unknown>): RunRecord {
-  return {
-    id: String(row.id),
-    sessionId: String(row.session_id),
-    userMessageId: String(row.user_message_id),
-    assistantMessageId: String(row.assistant_message_id),
-    provider: String(row.provider),
-    model: String(row.model),
-    status: row.status as RunRecord["status"],
-    startedAt: String(row.started_at),
-    firstTokenAt: row.first_token_at ? String(row.first_token_at) : undefined,
-    completedAt: row.completed_at ? String(row.completed_at) : undefined,
-    failedAt: row.failed_at ? String(row.failed_at) : undefined,
-    errorMessage: row.error_message ? String(row.error_message) : undefined,
-    createdAt: String(row.created_at),
-    updatedAt: String(row.updated_at),
-  };
-}
+import { FileStore } from "../storage/file-store.js";
+import type { RunRecord, RunStatus } from "../../types/run.js";
 
 export class RunRepository {
-  constructor(private readonly db: Database.Database) {}
+  constructor(private readonly store: FileStore) {
+    this.store.ensureDir("runs");
+  }
 
   create(input: {
     sessionId: string;
@@ -45,53 +28,115 @@ export class RunRepository {
       updatedAt: now,
     };
 
-    this.db.prepare(`
-      INSERT INTO runs (
-        id, session_id, user_message_id, assistant_message_id,
-        provider, model, status, started_at,
-        first_token_at, completed_at, failed_at, error_message,
-        created_at, updated_at
-      ) VALUES (
-        @id, @sessionId, @userMessageId, @assistantMessageId,
-        @provider, @model, @status, @startedAt,
-        NULL, NULL, NULL, NULL,
-        @createdAt, @updatedAt
-      )
-    `).run(run);
-
+    this.store.writeJson(getRunPath(run.id), run);
     return run;
   }
 
   getById(runId: string) {
-    const row = this.db.prepare(`SELECT * FROM runs WHERE id = ?`).get(runId) as Record<string, unknown> | undefined;
-    return row ? mapRun(row) : null;
+    const run = this.store.readJson(getRunPath(runId));
+    return run ? parseRunRecord(run) : null;
   }
 
   deleteBySession(sessionId: string) {
-    this.db.prepare(`DELETE FROM runs WHERE session_id = ?`).run(sessionId);
+    for (const run of listRuns(this.store)) {
+      if (run.sessionId === sessionId) {
+        this.store.delete(getRunPath(run.id));
+      }
+    }
   }
 
   markFirstToken(runId: string, at = new Date().toISOString()) {
-    this.db.prepare(`
-      UPDATE runs
-      SET first_token_at = COALESCE(first_token_at, ?), updated_at = ?
-      WHERE id = ?
-    `).run(at, at, runId);
+    const run = this.requireRun(runId);
+    this.store.writeJson(getRunPath(runId), {
+      ...run,
+      firstTokenAt: run.firstTokenAt ?? at,
+      updatedAt: at,
+    });
   }
 
   markCompleted(runId: string, at = new Date().toISOString()) {
-    this.db.prepare(`
-      UPDATE runs
-      SET status = 'completed', completed_at = ?, updated_at = ?
-      WHERE id = ?
-    `).run(at, at, runId);
+    const run = this.requireRun(runId);
+    this.store.writeJson(getRunPath(runId), {
+      ...run,
+      status: "completed",
+      completedAt: at,
+      updatedAt: at,
+    });
   }
 
   markFailed(runId: string, errorMessage: string, at = new Date().toISOString()) {
-    this.db.prepare(`
-      UPDATE runs
-      SET status = 'failed', failed_at = ?, error_message = ?, updated_at = ?
-      WHERE id = ?
-    `).run(at, errorMessage, at, runId);
+    const run = this.requireRun(runId);
+    this.store.writeJson(getRunPath(runId), {
+      ...run,
+      status: "failed",
+      failedAt: at,
+      errorMessage,
+      updatedAt: at,
+    });
   }
+
+  private requireRun(runId: string) {
+    const run = this.getById(runId);
+    if (!run) {
+      throw new Error(`Run not found: ${runId}`);
+    }
+    return run;
+  }
+}
+
+function listRuns(store: FileStore) {
+  return store
+    .list("runs")
+    .map((filePath) => store.readJson(filePath))
+    .filter((run): run is unknown => Boolean(run))
+    .map(parseRunRecord);
+}
+
+function parseRunRecord(value: unknown): RunRecord {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Invalid run record");
+  }
+
+  const record = value as Record<string, unknown>;
+  return {
+    id: readString(record.id, "run.id"),
+    sessionId: readString(record.sessionId, "run.sessionId"),
+    userMessageId: readString(record.userMessageId, "run.userMessageId"),
+    assistantMessageId: readString(record.assistantMessageId, "run.assistantMessageId"),
+    provider: readString(record.provider, "run.provider"),
+    model: readString(record.model, "run.model"),
+    status: readRunStatus(record.status),
+    startedAt: readString(record.startedAt, "run.startedAt"),
+    firstTokenAt: readOptionalString(record.firstTokenAt, "run.firstTokenAt"),
+    completedAt: readOptionalString(record.completedAt, "run.completedAt"),
+    failedAt: readOptionalString(record.failedAt, "run.failedAt"),
+    errorMessage: readOptionalString(record.errorMessage, "run.errorMessage"),
+    createdAt: readString(record.createdAt, "run.createdAt"),
+    updatedAt: readString(record.updatedAt, "run.updatedAt"),
+  };
+}
+
+function readRunStatus(value: unknown): RunStatus {
+  if (value === "running" || value === "completed" || value === "failed") {
+    return value;
+  }
+  throw new Error("Invalid run status");
+}
+
+function readString(value: unknown, field: string) {
+  if (typeof value !== "string") {
+    throw new Error(`Invalid ${field}`);
+  }
+  return value;
+}
+
+function readOptionalString(value: unknown, field: string) {
+  if (value === undefined) {
+    return undefined;
+  }
+  return readString(value, field);
+}
+
+function getRunPath(runId: string) {
+  return `runs/${runId}.json`;
 }

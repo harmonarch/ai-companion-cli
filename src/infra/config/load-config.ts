@@ -10,7 +10,7 @@ const defaultHistoryMaxMessages = 24;
 const rawConfigSchema = z.object({
   defaultProvider: z.literal("deepseek").optional(),
   defaultModel: z.string().min(1).optional(),
-  databasePath: z.string().min(1).optional(),
+  storagePath: z.string().min(1).optional(),
   history: z.object({
     maxMessages: z.number().int().positive().optional(),
   }).partial().optional(),
@@ -33,7 +33,7 @@ export interface AppConfig {
   defaultProvider: "deepseek";
   defaultModel: string;
   deepseekBaseUrl: string;
-  databasePath: string;
+  storagePath: string;
   historyMaxMessages: number;
   workspaceRoot: string;
   deepseekApiKey?: string;
@@ -82,7 +82,7 @@ export function loadConfig(): AppConfig {
     defaultProvider: "deepseek",
     defaultModel: process.env.AI_COMPANION_MODEL ?? fileConfig.defaultModel ?? "deepseek-chat",
     deepseekBaseUrl: process.env.DEEPSEEK_BASE_URL ?? "https://api.deepseek.com/v1",
-    databasePath: process.env.AI_COMPANION_DB_PATH ?? fileConfig.databasePath ?? path.join(homedir(), ".ai-companion", "ai-companion.db"),
+    storagePath: process.env.AI_COMPANION_STORAGE_PATH ?? fileConfig.storagePath ?? path.join(homedir(), ".ai-companion"),
     historyMaxMessages,
     workspaceRoot: process.cwd(),
     deepseekApiKey: process.env.DEEPSEEK_API_KEY,

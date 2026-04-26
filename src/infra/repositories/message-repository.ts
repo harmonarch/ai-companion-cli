@@ -1,36 +1,15 @@
 import crypto from "node:crypto";
-import type Database from "better-sqlite3";
+import { FileStore } from "../storage/file-store.js";
 import type { ChatMessage, MessageKind, MessageRole } from "../../types/chat.js";
 
-function mapMessage(row: Record<string, unknown>): ChatMessage {
-  return {
-    id: String(row.id),
-    sessionId: String(row.session_id),
-    role: row.role as MessageRole,
-    kind: row.kind as MessageKind,
-    content: String(row.content),
-    createdAt: String(row.created_at),
-    metadata: parseJsonRecord(row.metadata_json),
-  };
-}
-
-function parseJsonRecord(value: unknown) {
-  if (typeof value !== "string") {
-    return {};
-  }
-
-  try {
-    const parsed = JSON.parse(value);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : {};
-  } catch {
-    return {};
-  }
+function compareMessages(a: ChatMessage, b: ChatMessage) {
+  return a.createdAt.localeCompare(b.createdAt);
 }
 
 export class MessageRepository {
-  constructor(private readonly db: Database.Database) {}
+  constructor(private readonly store: FileStore) {
+    this.store.ensureDir("messages");
+  }
 
   create(input: {
     sessionId: string;
@@ -49,32 +28,81 @@ export class MessageRepository {
       metadata: input.metadata ?? {},
     };
 
-    this.db.prepare(`
-      INSERT INTO messages (id, session_id, role, kind, content, metadata_json, created_at)
-      VALUES (@id, @sessionId, @role, @kind, @content, @metadataJson, @createdAt)
-    `).run({
-      ...message,
-      metadataJson: JSON.stringify(message.metadata),
-    });
-
+    this.store.appendJsonLine(getMessagePath(input.sessionId), message);
     return message;
   }
 
   listBySession(sessionId: string) {
-    const rows = this.db.prepare(`
-      SELECT * FROM messages WHERE session_id = ? ORDER BY created_at ASC
-    `).all(sessionId) as Array<Record<string, unknown>>;
-
-    return rows.map(mapMessage);
+    return this.store
+      .readJsonLines(getMessagePath(sessionId))
+      .map(parseChatMessage)
+      .sort(compareMessages);
   }
 
-  updateContent(messageId: string, content: string, metadata?: Record<string, unknown>) {
-    this.db.prepare(`
-      UPDATE messages SET content = ?, metadata_json = ? WHERE id = ?
-    `).run(content, JSON.stringify(metadata ?? {}), messageId);
+  updateContent(sessionId: string, messageId: string, content: string, metadata?: Record<string, unknown>) {
+    const messages = this.listBySession(sessionId);
+    const next = messages.map((message) => (
+      message.id === messageId
+        ? { ...message, content, metadata: metadata ?? {} }
+        : message
+    ));
+
+    this.store.writeJsonLines(getMessagePath(sessionId), next);
   }
 
   deleteBySession(sessionId: string) {
-    this.db.prepare(`DELETE FROM messages WHERE session_id = ?`).run(sessionId);
+    this.store.delete(getMessagePath(sessionId));
   }
+}
+
+function parseChatMessage(value: unknown): ChatMessage {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Invalid chat message record");
+  }
+
+  const record = value as Record<string, unknown>;
+  const role = readMessageRole(record.role);
+  const kind = readMessageKind(record.kind);
+
+  return {
+    id: readString(record.id, "message.id"),
+    sessionId: readString(record.sessionId, "message.sessionId"),
+    role,
+    kind,
+    content: readString(record.content, "message.content"),
+    createdAt: readString(record.createdAt, "message.createdAt"),
+    metadata: readObject(record.metadata, "message.metadata"),
+  };
+}
+
+function readMessageRole(value: unknown): MessageRole {
+  if (value === "user" || value === "assistant" || value === "system" || value === "tool") {
+    return value;
+  }
+  throw new Error("Invalid message role");
+}
+
+function readMessageKind(value: unknown): MessageKind {
+  if (value === "user" || value === "assistant" || value === "system" || value === "tool") {
+    return value;
+  }
+  throw new Error("Invalid message kind");
+}
+
+function readString(value: unknown, field: string) {
+  if (typeof value !== "string") {
+    throw new Error(`Invalid ${field}`);
+  }
+  return value;
+}
+
+function readObject(value: unknown, field: string) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`Invalid ${field}`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function getMessagePath(sessionId: string) {
+  return `messages/${sessionId}.jsonl`;
 }

@@ -142,7 +142,7 @@ export class ChatController {
         handlers.onAssistantChunk(assistantMessage.id, fallbackText);
       }
 
-      this.messageRepository.updateContent(assistantMessage.id, assistantText, {});
+      this.messageRepository.updateContent(session.id, assistantMessage.id, assistantText, {});
       this.sessionStore.touchSession(session.id);
       handlers.onAssistantCompleted(assistantMessage.id, assistantText);
       this.runRepository.markCompleted(run.id);
@@ -150,12 +150,13 @@ export class ChatController {
       buffer.close();
       const errorMessage = error instanceof Error ? error.message : String(error);
       const persistedContent = assistantText || `Error: ${errorMessage}`;
-      this.messageRepository.updateContent(assistantMessage.id, persistedContent, { error: errorMessage });
+      this.messageRepository.updateContent(session.id, assistantMessage.id, persistedContent, { error: errorMessage });
       handlers.onAssistantCompleted(assistantMessage.id, persistedContent);
       try {
         this.runRepository.markFailed(run.id, errorMessage);
-      } catch {
-        // Preserve the original run failure.
+      } catch (markFailedError) {
+        const persistMessage = markFailedError instanceof Error ? markFailedError.message : String(markFailedError);
+        throw new Error(`Failed to persist run failure: ${persistMessage}`, { cause: error });
       }
       throw error;
     }

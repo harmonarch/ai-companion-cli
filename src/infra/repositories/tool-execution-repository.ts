@@ -1,41 +1,15 @@
 import crypto from "node:crypto";
-import type Database from "better-sqlite3";
-import type { ToolExecutionRecord, ToolExecutionStatus } from "../../types/tool.js";
+import { FileStore } from "../storage/file-store.js";
+import type { ToolExecutionRecord, ToolExecutionStatus, ToolRiskLevel } from "../../types/tool.js";
 
-function mapToolExecution(row: Record<string, unknown>): ToolExecutionRecord {
-  return {
-    id: String(row.id),
-    sessionId: String(row.session_id),
-    runId: row.run_id ? String(row.run_id) : undefined,
-    messageId: row.message_id ? String(row.message_id) : undefined,
-    toolName: String(row.tool_name),
-    riskLevel: row.risk_level as ToolExecutionRecord["riskLevel"],
-    status: row.status as ToolExecutionStatus,
-    summary: String(row.summary),
-    input: parseJsonRecord(row.input_json),
-    output: parseJsonRecord(row.output_json),
-    createdAt: String(row.created_at),
-    updatedAt: String(row.updated_at),
-  };
-}
-
-function parseJsonRecord(value: unknown) {
-  if (typeof value !== "string") {
-    return {};
-  }
-
-  try {
-    const parsed = JSON.parse(value);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : {};
-  } catch {
-    return {};
-  }
+function compareExecutions(a: ToolExecutionRecord, b: ToolExecutionRecord) {
+  return a.createdAt.localeCompare(b.createdAt);
 }
 
 export class ToolExecutionRepository {
-  constructor(private readonly db: Database.Database) {}
+  constructor(private readonly store: FileStore) {
+    this.store.ensureDir("tool-executions");
+  }
 
   create(input: Omit<ToolExecutionRecord, "id" | "createdAt" | "updatedAt">) {
     const now = new Date().toISOString();
@@ -46,20 +20,7 @@ export class ToolExecutionRepository {
       updatedAt: now,
     };
 
-    this.db.prepare(`
-      INSERT INTO tool_executions (
-        id, session_id, run_id, message_id, tool_name, risk_level, status, summary,
-        input_json, output_json, created_at, updated_at
-      ) VALUES (
-        @id, @sessionId, @runId, @messageId, @toolName, @riskLevel, @status, @summary,
-        @inputJson, @outputJson, @createdAt, @updatedAt
-      )
-    `).run({
-      ...record,
-      inputJson: JSON.stringify(record.input),
-      outputJson: JSON.stringify(record.output),
-    });
-
+    this.store.writeJson(getToolExecutionPath(record.id), record);
     return record;
   }
 
@@ -75,28 +36,95 @@ export class ToolExecutionRepository {
       updatedAt: new Date().toISOString(),
     };
 
-    this.db.prepare(`
-      UPDATE tool_executions
-      SET status = ?, summary = ?, output_json = ?, updated_at = ?
-      WHERE id = ?
-    `).run(next.status, next.summary, JSON.stringify(next.output), next.updatedAt, recordId);
-
+    this.store.writeJson(getToolExecutionPath(recordId), next);
     return next;
   }
 
   listBySession(sessionId: string) {
-    const rows = this.db.prepare(`
-      SELECT * FROM tool_executions WHERE session_id = ? ORDER BY created_at ASC
-    `).all(sessionId) as Array<Record<string, unknown>>;
-    return rows.map(mapToolExecution);
+    return listToolExecutions(this.store)
+      .filter((record) => record.sessionId === sessionId)
+      .sort(compareExecutions);
   }
 
   getById(recordId: string) {
-    const row = this.db.prepare(`SELECT * FROM tool_executions WHERE id = ?`).get(recordId) as Record<string, unknown> | undefined;
-    return row ? mapToolExecution(row) : null;
+    const record = this.store.readJson(getToolExecutionPath(recordId));
+    return record ? parseToolExecutionRecord(record) : null;
   }
 
   deleteBySession(sessionId: string) {
-    this.db.prepare(`DELETE FROM tool_executions WHERE session_id = ?`).run(sessionId);
+    for (const record of listToolExecutions(this.store)) {
+      if (record.sessionId === sessionId) {
+        this.store.delete(getToolExecutionPath(record.id));
+      }
+    }
   }
+}
+
+function listToolExecutions(store: FileStore) {
+  return store
+    .list("tool-executions")
+    .map((filePath) => store.readJson(filePath))
+    .filter((record): record is unknown => Boolean(record))
+    .map(parseToolExecutionRecord);
+}
+
+function parseToolExecutionRecord(value: unknown): ToolExecutionRecord {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Invalid tool execution record");
+  }
+
+  const record = value as Record<string, unknown>;
+  return {
+    id: readString(record.id, "toolExecution.id"),
+    sessionId: readString(record.sessionId, "toolExecution.sessionId"),
+    runId: readOptionalString(record.runId, "toolExecution.runId"),
+    messageId: readOptionalString(record.messageId, "toolExecution.messageId"),
+    toolName: readString(record.toolName, "toolExecution.toolName"),
+    riskLevel: readRiskLevel(record.riskLevel),
+    status: readToolExecutionStatus(record.status),
+    summary: readString(record.summary, "toolExecution.summary"),
+    input: readObject(record.input, "toolExecution.input"),
+    output: readObject(record.output, "toolExecution.output"),
+    createdAt: readString(record.createdAt, "toolExecution.createdAt"),
+    updatedAt: readString(record.updatedAt, "toolExecution.updatedAt"),
+  };
+}
+
+function readRiskLevel(value: unknown): ToolRiskLevel {
+  if (value === "low" || value === "medium") {
+    return value;
+  }
+  throw new Error("Invalid tool risk level");
+}
+
+function readToolExecutionStatus(value: unknown): ToolExecutionStatus {
+  if (value === "pending" || value === "running" || value === "completed" || value === "failed" || value === "denied") {
+    return value;
+  }
+  throw new Error("Invalid tool execution status");
+}
+
+function readString(value: unknown, field: string) {
+  if (typeof value !== "string") {
+    throw new Error(`Invalid ${field}`);
+  }
+  return value;
+}
+
+function readOptionalString(value: unknown, field: string) {
+  if (value === undefined) {
+    return undefined;
+  }
+  return readString(value, field);
+}
+
+function readObject(value: unknown, field: string) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`Invalid ${field}`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function getToolExecutionPath(recordId: string) {
+  return `tool-executions/${recordId}.json`;
 }
