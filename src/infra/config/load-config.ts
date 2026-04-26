@@ -5,10 +5,15 @@ import TOML from "toml";
 import { z } from "zod";
 import type { ProviderId } from "../../providers/types.js";
 
+const defaultHistoryMaxMessages = 24;
+
 const rawConfigSchema = z.object({
   defaultProvider: z.literal("deepseek").optional(),
   defaultModel: z.string().min(1).optional(),
   databasePath: z.string().min(1).optional(),
+  history: z.object({
+    maxMessages: z.number().int().positive().optional(),
+  }).partial().optional(),
   prompts: z.object({
     defaultSystemFile: z.string().min(1).optional(),
     providers: z.object({
@@ -29,6 +34,7 @@ export interface AppConfig {
   defaultModel: string;
   deepseekBaseUrl: string;
   databasePath: string;
+  historyMaxMessages: number;
   workspaceRoot: string;
   deepseekApiKey?: string;
   prompts: PromptConfig;
@@ -68,12 +74,16 @@ function readTomlConfig(): { config: RawConfig; configDir?: string } {
 
 export function loadConfig(): AppConfig {
   const { config: fileConfig, configDir } = readTomlConfig();
+  const historyMaxMessages = readPositiveInt(process.env.AI_COMPANION_HISTORY_MAX_MESSAGES)
+    ?? fileConfig.history?.maxMessages
+    ?? defaultHistoryMaxMessages;
 
   return {
     defaultProvider: "deepseek",
     defaultModel: process.env.AI_COMPANION_MODEL ?? fileConfig.defaultModel ?? "deepseek-chat",
     deepseekBaseUrl: process.env.DEEPSEEK_BASE_URL ?? "https://api.deepseek.com/v1",
     databasePath: process.env.AI_COMPANION_DB_PATH ?? fileConfig.databasePath ?? path.join(homedir(), ".ai-companion", "ai-companion.db"),
+    historyMaxMessages,
     workspaceRoot: process.cwd(),
     deepseekApiKey: process.env.DEEPSEEK_API_KEY,
     prompts: {
@@ -83,6 +93,14 @@ export function loadConfig(): AppConfig {
       },
     },
   };
+}
+
+function readPositiveInt(value: string | undefined) {
+  if (!value || !/^[1-9]\d*$/.test(value)) {
+    return undefined;
+  }
+
+  return Number(value);
 }
 
 function resolveConfigPath(configDir: string | undefined, filePath: string | undefined) {

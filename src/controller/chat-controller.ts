@@ -10,6 +10,7 @@ import { createRuntimeTools } from "../tools/index.js";
 import type { ChatMessage } from "../types/chat.js";
 import type { SessionRecord } from "../types/session.js";
 import type { ToolConfirmationRequest, ToolExecutionRecord } from "../types/tool.js";
+import { selectHistory } from "./history-selection.js";
 import { StreamBuffer } from "./stream-buffer.js";
 import type { SessionStore } from "./session-store.js";
 
@@ -99,13 +100,14 @@ export class ChatController {
       const model = provider.createChatModel(this.config, session);
       const graph = buildGraph(model, runtimeTools);
       const history = this.messageRepository.listBySession(session.id).filter((message) => message.id !== assistantMessage.id);
+      const selectedHistory = selectHistory(history, this.config.historyMaxMessages);
       const systemPrompt = provider.resolveSystemPrompt({
         config: this.config,
         promptLoader: this.promptLoader,
         session,
       });
 
-      for await (const event of graph.streamEvents(buildGraphInput(history, systemPrompt), { version: "v2" })) {
+      for await (const event of graph.streamEvents(buildGraphInput(selectedHistory, systemPrompt), { version: "v2" })) {
         switch (event.event) {
           case "on_chat_model_stream": {
             const text = extractChunkText(event.data?.chunk);
