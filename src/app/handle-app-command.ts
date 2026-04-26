@@ -7,6 +7,7 @@ interface HandleAppCommandOptions {
   command: SlashCommand;
   sessionStore: SessionStore;
   exit(): void;
+  setHelpVisible: Dispatch<SetStateAction<boolean>>;
   setSnapshot: Dispatch<SetStateAction<SessionSnapshot | null>>;
   setSessions: Dispatch<SetStateAction<SessionSummary[]>>;
   setSessionsVisible: Dispatch<SetStateAction<boolean>>;
@@ -18,6 +19,7 @@ export async function handleAppCommand({
   command,
   sessionStore,
   exit,
+  setHelpVisible,
   setSnapshot,
   setSessions,
   setSessionsVisible,
@@ -33,6 +35,7 @@ export async function handleAppCommand({
       return;
     }
     case "sessions": {
+      setHelpVisible(false);
       setSessions(sessionStore.listSessions());
       setSelectedSessionIndex(0);
       setSessionsVisible(true);
@@ -40,6 +43,7 @@ export async function handleAppCommand({
     }
     case "switch": {
       if (!command.target) {
+        setHelpVisible(false);
         setSessions(sessionStore.listSessions());
         setSelectedSessionIndex(0);
         setSessionsVisible(true);
@@ -68,7 +72,9 @@ export async function handleAppCommand({
       return;
     }
     case "help": {
-      setStatusMessage("Commands: /new /sessions /switch <n|id> /help /exit");
+      setSessionsVisible(false);
+      setHelpVisible(true);
+      setStatusMessage("Help opened. Press Esc to close.");
       return;
     }
     case "exit": {

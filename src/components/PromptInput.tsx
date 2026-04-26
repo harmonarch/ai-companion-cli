@@ -19,7 +19,7 @@ export function PromptInput({
   onChange: React.Dispatch<React.SetStateAction<string>>;
   onSubmit(value: string): void;
   disabled?: boolean;
-  disabledReason?: "streaming" | "confirm" | "sessions";
+  disabledReason?: "streaming" | "confirm" | "sessions" | "help";
 }) {
   const { stdin, isRawModeSupported } = useStdin();
   const { write } = useStdout();
@@ -116,7 +116,7 @@ export function PromptInput({
   );
 }
 
-function getPlaceholder(disabledReason?: "streaming" | "confirm" | "sessions") {
+function getPlaceholder(disabledReason?: "streaming" | "confirm" | "sessions" | "help") {
   switch (disabledReason) {
     case "streaming":
       return "Assistant is responding...";
@@ -124,6 +124,8 @@ function getPlaceholder(disabledReason?: "streaming" | "confirm" | "sessions") {
       return "Approve or deny the tool request above";
     case "sessions":
       return "Select a session above";
+    case "help":
+      return "Help is open. Press Esc to close";
     default:
       return "Type a message or /help";
   }

@@ -8,6 +8,7 @@ import { useSubmitHandler } from "./app/use-submit-handler.js";
 import { ChatList } from "./components/ChatList.js";
 import { HorizontalDivider } from "./components/HorizontalDivider.js";
 import { PromptInput } from "./components/PromptInput.js";
+import { HelpList } from "./components/HelpList.js";
 import { SessionList } from "./components/SessionList.js";
 import { StatusBar } from "./components/StatusBar.js";
 import type { ChatController } from "./controller/chat-controller.js";
@@ -34,6 +35,7 @@ export function App({ initialSessionId }: { initialSessionId?: string }) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string>();
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
+  const [helpVisible, setHelpVisible] = useState(false);
   const [sessionsVisible, setSessionsVisible] = useState(false);
   const [selectedSessionIndex, setSelectedSessionIndex] = useState(0);
   const [pendingConfirmations, setPendingConfirmations] = useState<PendingConfirmation[]>([]);
@@ -83,10 +85,12 @@ export function App({ initialSessionId }: { initialSessionId?: string }) {
 
   useAppInput({
     activeConfirmation,
+    helpVisible,
     sessionsVisible,
     sessions,
     selectedSessionIndex,
     sessionStore: services.sessionStore,
+    setHelpVisible,
     setPendingConfirmations,
     setStatusMessage,
     setSessionsVisible,
@@ -99,6 +103,7 @@ export function App({ initialSessionId }: { initialSessionId?: string }) {
     controller: services.controller,
     exit,
     sessionStore: services.sessionStore,
+    setHelpVisible,
     setInput,
     setIsStreaming,
     setPendingConfirmations,
@@ -122,8 +127,24 @@ export function App({ initialSessionId }: { initialSessionId?: string }) {
   }
 
   const activeSnapshot = snapshot;
-  const mode = activeConfirmation ? "confirm" : sessionsVisible ? "sessions" : isStreaming ? "streaming" : "ready";
-  const inputDisabledReason = activeConfirmation ? "confirm" : sessionsVisible ? "sessions" : isStreaming ? "streaming" : undefined;
+  const mode = activeConfirmation
+    ? "confirm"
+    : sessionsVisible
+      ? "sessions"
+      : helpVisible
+        ? "help"
+        : isStreaming
+          ? "streaming"
+          : "ready";
+  const inputDisabledReason = activeConfirmation
+    ? "confirm"
+    : sessionsVisible
+      ? "sessions"
+      : helpVisible
+        ? "help"
+        : isStreaming
+          ? "streaming"
+          : undefined;
 
   return (
     <Box flexDirection="column">
@@ -137,6 +158,11 @@ export function App({ initialSessionId }: { initialSessionId?: string }) {
             {pendingConfirmations.length > 1 ? (
               <Text>{pc.gray(`${pendingConfirmations.length - 1} more queued`)}</Text>
             ) : null}
+          </Box>
+        ) : null}
+        {helpVisible ? (
+          <Box marginBottom={1}>
+            <HelpList />
           </Box>
         ) : null}
         {sessionsVisible ? (
@@ -154,7 +180,7 @@ export function App({ initialSessionId }: { initialSessionId?: string }) {
           onSubmit={(next) => {
             void handleSubmit(next);
           }}
-          disabled={isStreaming || sessionsVisible || Boolean(activeConfirmation)}
+          disabled={isStreaming || helpVisible || sessionsVisible || Boolean(activeConfirmation)}
           disabledReason={inputDisabledReason}
         />
         <HorizontalDivider />

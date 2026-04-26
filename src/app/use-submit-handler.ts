@@ -13,6 +13,7 @@ interface UseSubmitHandlerOptions {
   controller: ChatController | null;
   exit(): void;
   sessionStore: SessionStore | null;
+  setHelpVisible: Dispatch<SetStateAction<boolean>>;
   setInput: Dispatch<SetStateAction<string>>;
   setIsStreaming: Dispatch<SetStateAction<boolean>>;
   setPendingConfirmations: Dispatch<SetStateAction<PendingConfirmation[]>>;
@@ -28,6 +29,7 @@ export function useSubmitHandler({
   controller,
   exit,
   sessionStore,
+  setHelpVisible,
   setInput,
   setIsStreaming,
   setPendingConfirmations,
@@ -57,6 +59,7 @@ export function useSubmitHandler({
           command,
           sessionStore,
           exit,
+          setHelpVisible,
           setSnapshot,
           setSessions,
           setSessionsVisible,
@@ -133,6 +136,7 @@ export function useSubmitHandler({
     controller,
     exit,
     sessionStore,
+    setHelpVisible,
     setInput,
     setIsStreaming,
     setPendingConfirmations,

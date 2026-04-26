@@ -9,6 +9,7 @@ const modeLabels = {
   streaming: "streaming",
   confirm: "confirm",
   sessions: "sessions",
+  help: "help",
 } as const;
 
 export function StatusBar({
@@ -17,7 +18,7 @@ export function StatusBar({
   statusMessage,
 }: {
   session: SessionRecord;
-  mode: "ready" | "streaming" | "confirm" | "sessions";
+  mode: "ready" | "streaming" | "confirm" | "sessions" | "help";
   statusMessage?: string;
 }) {
   const safeTitle = sanitizeSingleLineText(session.title, 80);

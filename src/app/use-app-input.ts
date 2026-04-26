@@ -11,10 +11,12 @@ export interface PendingConfirmation {
 
 interface UseAppInputOptions {
   activeConfirmation: PendingConfirmation | null;
+  helpVisible: boolean;
   sessionsVisible: boolean;
   sessions: SessionSummary[];
   selectedSessionIndex: number;
   sessionStore: SessionStore | null;
+  setHelpVisible: Dispatch<SetStateAction<boolean>>;
   setPendingConfirmations: Dispatch<SetStateAction<PendingConfirmation[]>>;
   setStatusMessage: Dispatch<SetStateAction<string | undefined>>;
   setSessionsVisible: Dispatch<SetStateAction<boolean>>;
@@ -24,10 +26,12 @@ interface UseAppInputOptions {
 
 export function useAppInput({
   activeConfirmation,
+  helpVisible,
   sessionsVisible,
   sessions,
   selectedSessionIndex,
   sessionStore,
+  setHelpVisible,
   setPendingConfirmations,
   setStatusMessage,
   setSessionsVisible,
@@ -37,6 +41,11 @@ export function useAppInput({
   useInput((inputChar, key) => {
     if (activeConfirmation) {
       handleConfirmationInput(inputChar, key, activeConfirmation, setPendingConfirmations, setStatusMessage);
+      return;
+    }
+
+    if (helpVisible) {
+      handleHelpInput(key, setHelpVisible);
       return;
     }
 
@@ -75,6 +84,15 @@ function handleConfirmationInput(
     activeConfirmation.resolve(false);
     setPendingConfirmations((current) => current.slice(1));
     setStatusMessage("Tool execution denied.");
+  }
+}
+
+function handleHelpInput(
+  key: Key,
+  setHelpVisible: UseAppInputOptions["setHelpVisible"],
+) {
+  if (key.escape) {
+    setHelpVisible(false);
   }
 }
 
