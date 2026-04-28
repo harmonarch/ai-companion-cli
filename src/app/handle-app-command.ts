@@ -8,6 +8,7 @@ interface HandleAppCommandOptions {
   sessionStore: SessionStore;
   onExitRequested(): void;
   setHelpVisible: Dispatch<SetStateAction<boolean>>;
+  setMemoryVisible: Dispatch<SetStateAction<boolean>>;
   setSessionDeleteConfirmId: Dispatch<SetStateAction<string | null>>;
   setSnapshot: Dispatch<SetStateAction<SessionSnapshot | null>>;
   setSessions: Dispatch<SetStateAction<SessionSummary[]>>;
@@ -21,6 +22,7 @@ export async function handleAppCommand({
   sessionStore,
   onExitRequested,
   setHelpVisible,
+  setMemoryVisible,
   setSessionDeleteConfirmId,
   setSnapshot,
   setSessions,
@@ -31,6 +33,8 @@ export async function handleAppCommand({
   switch (command.type) {
     case "new": {
       const nextSnapshot = sessionStore.createSession();
+      setHelpVisible(false);
+      setMemoryVisible(false);
       setSessionDeleteConfirmId(null);
       setSnapshot(nextSnapshot);
       setSessions(sessionStore.listSessions());
@@ -39,6 +43,7 @@ export async function handleAppCommand({
     }
     case "sessions": {
       setHelpVisible(false);
+      setMemoryVisible(false);
       setSessionDeleteConfirmId(null);
       setSessions(sessionStore.listSessions());
       setSelectedSessionIndex(0);
@@ -48,6 +53,7 @@ export async function handleAppCommand({
     case "switch": {
       if (!command.target) {
         setHelpVisible(false);
+        setMemoryVisible(false);
         setSessionDeleteConfirmId(null);
         setSessions(sessionStore.listSessions());
         setSelectedSessionIndex(0);
@@ -68,6 +74,8 @@ export async function handleAppCommand({
       }
 
       try {
+        setHelpVisible(false);
+        setMemoryVisible(false);
         setSessionDeleteConfirmId(null);
         setSnapshot(sessionStore.loadSession(target.id));
         setStatusMessage(`Switched to ${target.title}.`);
@@ -77,7 +85,35 @@ export async function handleAppCommand({
       }
       return;
     }
+    case "memory": {
+      if (command.target?.toLowerCase().startsWith("delete ")) {
+        const memoryId = command.target.slice("delete ".length).trim();
+        if (!memoryId) {
+          setStatusMessage("Memory id is required.");
+          return;
+        }
+
+        try {
+          sessionStore.deleteMemory(memoryId);
+          setSnapshot((current) => current ? sessionStore.loadSession(current.session.id) : current);
+          setMemoryVisible(false);
+          setStatusMessage(`Deleted memory ${memoryId}.`);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          setStatusMessage(`Error: ${message}`);
+        }
+        return;
+      }
+
+      setHelpVisible(false);
+      setSessionsVisible(false);
+      setSessionDeleteConfirmId(null);
+      setMemoryVisible(true);
+      setStatusMessage("Memory opened. Press Esc to close.");
+      return;
+    }
     case "help": {
+      setMemoryVisible(false);
       setSessionDeleteConfirmId(null);
       setSessionsVisible(false);
       setHelpVisible(true);

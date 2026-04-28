@@ -3,13 +3,16 @@ import type { RunRepository } from "../infra/repositories/run-repository.js";
 import type { SessionRepository } from "../infra/repositories/session-repository.js";
 import type { ToolExecutionRepository } from "../infra/repositories/tool-execution-repository.js";
 import type { ChatMessage } from "../types/chat.js";
+import type { MemoryRecord } from "../types/memory.js";
 import type { SessionRecord, SessionSummary } from "../types/session.js";
 import type { ToolExecutionRecord } from "../types/tool.js";
+import type { MemoryService } from "./memory-service.js";
 
 export interface SessionSnapshot {
   session: SessionRecord;
   messages: ChatMessage[];
   toolExecutions: ToolExecutionRecord[];
+  memories: MemoryRecord[];
 }
 
 export class SessionStore {
@@ -18,6 +21,7 @@ export class SessionStore {
     private readonly messageRepository: MessageRepository,
     private readonly runRepository: RunRepository,
     private readonly toolExecutionRepository: ToolExecutionRepository,
+    private readonly memoryService: MemoryService,
     private readonly defaults: { provider: string; model: string },
   ) {}
 
@@ -46,6 +50,7 @@ export class SessionStore {
       session,
       messages: [],
       toolExecutions: [],
+      memories: this.memoryService.listMemories(),
     };
   }
 
@@ -59,6 +64,7 @@ export class SessionStore {
       session,
       messages: this.messageRepository.listBySession(sessionId).filter((message) => message.content.length > 0),
       toolExecutions: this.toolExecutionRepository.listBySession(sessionId),
+      memories: this.memoryService.listMemories(),
     };
   }
 
@@ -67,6 +73,10 @@ export class SessionStore {
     this.toolExecutionRepository.deleteBySession(sessionId);
     this.messageRepository.deleteBySession(sessionId);
     this.sessionRepository.delete(sessionId);
+  }
+
+  deleteMemory(memoryId: string) {
+    return this.memoryService.deleteMemory(memoryId);
   }
 
   touchSession(sessionId: string) {

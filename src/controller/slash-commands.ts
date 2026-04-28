@@ -2,6 +2,7 @@ export type SlashCommand =
   | { type: "new" }
   | { type: "sessions" }
   | { type: "switch"; target?: string }
+  | { type: "memory"; target?: string }
   | { type: "help" }
   | { type: "exit" }
   | { type: "unknown"; name: string };
@@ -26,6 +27,8 @@ export function parseSlashCommand(input: string): SlashCommand | null {
       return { type: "sessions" };
     case "switch":
       return { type: "switch", target: target || undefined };
+    case "memory":
+      return { type: "memory", target: target || undefined };
     case "help":
       return { type: "help" };
     case "exit":

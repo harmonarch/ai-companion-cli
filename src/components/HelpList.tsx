@@ -6,6 +6,8 @@ const helpItems = [
   ["/new", "create a new session"],
   ["/sessions", "open the session list"],
   ["/switch <n|id>", "switch to a session"],
+  ["/memory", "open the memory panel"],
+  ["/memory delete <id>", "delete a memory record"],
   ["/help", "open this help panel"],
   ["/exit", "exit the app and hide the current screen"],
 ] as const;

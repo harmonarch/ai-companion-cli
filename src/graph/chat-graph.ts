@@ -29,8 +29,12 @@ export function buildGraph(model: ChatOpenAI, tools: unknown[]) {
     .compile();
 }
 
-export function buildGraphInput(messages: ChatMessage[], systemPrompt: string) {
+export function buildGraphInput(messages: ChatMessage[], systemPrompt: string, memoryContext?: string) {
   const history: BaseMessage[] = [new SystemMessage(systemPrompt)];
+
+  if (memoryContext) {
+    history.push(new SystemMessage(memoryContext));
+  }
 
   for (const message of messages) {
     if (message.role === "user") {

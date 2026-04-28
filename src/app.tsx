@@ -6,9 +6,10 @@ import { resolveInitialSession } from "./app/resolve-initial-session.js";
 import { useAppInput, type PendingConfirmation } from "./app/use-app-input.js";
 import { useSubmitHandler } from "./app/use-submit-handler.js";
 import { ChatList } from "./components/ChatList.js";
-import { HorizontalDivider } from "./components/HorizontalDivider.js";
-import { PromptInput } from "./components/PromptInput.js";
 import { HelpList } from "./components/HelpList.js";
+import { HorizontalDivider } from "./components/HorizontalDivider.js";
+import { MemoryList } from "./components/MemoryList.js";
+import { PromptInput } from "./components/PromptInput.js";
 import { SessionList } from "./components/SessionList.js";
 import { StatusBar } from "./components/StatusBar.js";
 import type { ChatController } from "./controller/chat-controller.js";
@@ -42,6 +43,7 @@ export function App({
   const [statusMessage, setStatusMessage] = useState<string>();
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [helpVisible, setHelpVisible] = useState(false);
+  const [memoryVisible, setMemoryVisible] = useState(false);
   const [sessionsVisible, setSessionsVisible] = useState(false);
   const [selectedSessionIndex, setSelectedSessionIndex] = useState(0);
   const [sessionDeleteConfirmId, setSessionDeleteConfirmId] = useState<string | null>(null);
@@ -94,12 +96,14 @@ export function App({
     activeConfirmation,
     activeSnapshot: snapshot,
     helpVisible,
+    memoryVisible,
     sessionDeleteConfirmId,
     sessionsVisible,
     sessions,
     selectedSessionIndex,
     sessionStore: services.sessionStore,
     setHelpVisible,
+    setMemoryVisible,
     setPendingConfirmations,
     setSessionDeleteConfirmId,
     setSessions,
@@ -115,6 +119,7 @@ export function App({
     onExitRequested: onExitRequested ?? exit,
     sessionStore: services.sessionStore,
     setHelpVisible,
+    setMemoryVisible,
     setInput,
     setIsStreaming,
     setPendingConfirmations,
@@ -139,24 +144,18 @@ export function App({
   }
 
   const activeSnapshot = snapshot;
-  const mode = activeConfirmation
-    ? "confirm"
-    : sessionsVisible
-      ? "sessions"
-      : helpVisible
-        ? "help"
-        : isStreaming
-          ? "streaming"
-          : "ready";
-  const inputDisabledReason = activeConfirmation
-    ? "confirm"
-    : sessionsVisible
-      ? "sessions"
-      : helpVisible
-        ? "help"
-        : isStreaming
-          ? "streaming"
-          : undefined;
+  let overlayMode: "confirm" | "sessions" | "memory" | "help" | null = null;
+  if (activeConfirmation) {
+    overlayMode = "confirm";
+  } else if (sessionsVisible) {
+    overlayMode = "sessions";
+  } else if (memoryVisible) {
+    overlayMode = "memory";
+  } else if (helpVisible) {
+    overlayMode = "help";
+  }
+  const mode = overlayMode ?? (isStreaming ? "streaming" : "ready");
+  const inputDisabledReason = overlayMode ?? (isStreaming ? "streaming" : undefined);
 
   return (
     <Box flexDirection="column">
@@ -175,6 +174,11 @@ export function App({
         {helpVisible ? (
           <Box marginBottom={1}>
             <HelpList />
+          </Box>
+        ) : null}
+        {memoryVisible ? (
+          <Box marginBottom={1}>
+            <MemoryList memories={activeSnapshot.memories} />
           </Box>
         ) : null}
         {sessionsVisible ? (
@@ -196,7 +200,7 @@ export function App({
           onSubmit={(next) => {
             void handleSubmit(next);
           }}
-          disabled={isStreaming || helpVisible || sessionsVisible || Boolean(activeConfirmation)}
+          disabled={isStreaming || helpVisible || memoryVisible || sessionsVisible || Boolean(activeConfirmation)}
           disabledReason={inputDisabledReason}
         />
         <HorizontalDivider />

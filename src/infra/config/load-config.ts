@@ -20,6 +20,11 @@ const rawConfigSchema = z.object({
       deepseek: z.string().min(1).optional(),
     }).partial().optional(),
   }).partial().optional(),
+  memory: z.object({
+    enabled: z.boolean().optional(),
+    userId: z.string().min(1).optional(),
+    autoWriteLowRisk: z.boolean().optional(),
+  }).partial().optional(),
 }).partial();
 
 type RawConfig = z.infer<typeof rawConfigSchema>;
@@ -27,6 +32,12 @@ type RawConfig = z.infer<typeof rawConfigSchema>;
 export interface PromptConfig {
   defaultSystemFile?: string;
   providers: Partial<Record<ProviderId, string>>;
+}
+
+export interface MemoryConfig {
+  enabled: boolean;
+  userId: string;
+  autoWriteLowRisk: boolean;
 }
 
 export interface AppConfig {
@@ -38,6 +49,7 @@ export interface AppConfig {
   workspaceRoot: string;
   deepseekApiKey?: string;
   prompts: PromptConfig;
+  memory: MemoryConfig;
 }
 
 function getConfigCandidates() {
@@ -92,6 +104,17 @@ export function loadConfig(): AppConfig {
         deepseek: resolveConfigPath(configDir, fileConfig.prompts?.providers?.deepseek),
       },
     },
+    memory: {
+      enabled: readBoolean(process.env.AI_COMPANION_MEMORY_ENABLED)
+        ?? fileConfig.memory?.enabled
+        ?? true,
+      userId: process.env.AI_COMPANION_MEMORY_USER_ID
+        ?? fileConfig.memory?.userId
+        ?? "local-user",
+      autoWriteLowRisk: readBoolean(process.env.AI_COMPANION_MEMORY_AUTO_WRITE_LOW_RISK)
+        ?? fileConfig.memory?.autoWriteLowRisk
+        ?? true,
+    },
   };
 }
 
@@ -101,6 +124,22 @@ function readPositiveInt(value: string | undefined) {
   }
 
   return Number(value);
+}
+
+function readBoolean(value: string | undefined) {
+  if (!value) {
+    return undefined;
+  }
+
+  if (value === "true") {
+    return true;
+  }
+
+  if (value === "false") {
+    return false;
+  }
+
+  return undefined;
 }
 
 function resolveConfigPath(configDir: string | undefined, filePath: string | undefined) {

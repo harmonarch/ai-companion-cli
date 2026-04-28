@@ -11,6 +11,7 @@ import type { ChatMessage } from "../types/chat.js";
 import type { SessionRecord } from "../types/session.js";
 import type { ToolConfirmationRequest, ToolExecutionRecord } from "../types/tool.js";
 import { selectHistory } from "./history-selection.js";
+import type { MemoryService } from "./memory-service.js";
 import { StreamBuffer } from "./stream-buffer.js";
 import type { SessionStore } from "./session-store.js";
 
@@ -33,6 +34,7 @@ export class ChatController {
     private readonly messageRepository: MessageRepository,
     private readonly runRepository: RunRepository,
     private readonly toolExecutionRepository: ToolExecutionRepository,
+    private readonly memoryService: MemoryService,
   ) {}
 
   async sendMessage(session: SessionRecord, input: string, handlers: SendMessageHandlers) {
@@ -50,6 +52,7 @@ export class ChatController {
     handlers.onUserMessage(userMessage);
 
     const sessionSnapshot = this.sessionStore.loadSession(session.id);
+    this.memoryService.updateScratchpad(session.id, trimmed, sessionSnapshot.toolExecutions);
     if (sessionSnapshot.messages.length === 1 && session.title.startsWith("Session ")) {
       const nextTitle = trimmed.slice(0, 48) || session.title;
       this.sessionStore.renameSession(session.id, nextTitle);
@@ -106,8 +109,9 @@ export class ChatController {
         promptLoader: this.promptLoader,
         session,
       });
+      const memoryContext = this.memoryService.retrieveForPrompt().context;
 
-      for await (const event of graph.streamEvents(buildGraphInput(selectedHistory, systemPrompt), { version: "v2" })) {
+      for await (const event of graph.streamEvents(buildGraphInput(selectedHistory, systemPrompt, memoryContext), { version: "v2" })) {
         switch (event.event) {
           case "on_chat_model_stream": {
             const text = extractChunkText(event.data?.chunk);
@@ -143,6 +147,21 @@ export class ChatController {
       }
 
       this.messageRepository.updateContent(session.id, assistantMessage.id, assistantText, {});
+      const completedAssistantMessage = {
+        ...assistantMessage,
+        content: assistantText,
+      };
+      await this.memoryService.processCompletedTurn({
+        session,
+        userMessage,
+        assistantMessage: completedAssistantMessage,
+        run,
+        toolExecutions: this.toolExecutionRepository.listBySession(session.id).filter((execution) => execution.runId === run.id),
+        extractMemoryCandidates: async (prompt) => {
+          const response = await model.invoke(prompt);
+          return extractChunkText(response);
+        },
+      });
       this.sessionStore.touchSession(session.id);
       handlers.onAssistantCompleted(assistantMessage.id, assistantText);
       this.runRepository.markCompleted(run.id);

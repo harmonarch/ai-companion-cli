@@ -13,12 +13,14 @@ interface UseAppInputOptions {
   activeConfirmation: PendingConfirmation | null;
   activeSnapshot: SessionSnapshot | null;
   helpVisible: boolean;
+  memoryVisible: boolean;
   sessionDeleteConfirmId: string | null;
   sessionsVisible: boolean;
   sessions: SessionSummary[];
   selectedSessionIndex: number;
   sessionStore: SessionStore | null;
   setHelpVisible: Dispatch<SetStateAction<boolean>>;
+  setMemoryVisible: Dispatch<SetStateAction<boolean>>;
   setPendingConfirmations: Dispatch<SetStateAction<PendingConfirmation[]>>;
   setSessionDeleteConfirmId: Dispatch<SetStateAction<string | null>>;
   setSessions: Dispatch<SetStateAction<SessionSummary[]>>;
@@ -32,12 +34,14 @@ export function useAppInput({
   activeConfirmation,
   activeSnapshot,
   helpVisible,
+  memoryVisible,
   sessionDeleteConfirmId,
   sessionsVisible,
   sessions,
   selectedSessionIndex,
   sessionStore,
   setHelpVisible,
+  setMemoryVisible,
   setPendingConfirmations,
   setSessionDeleteConfirmId,
   setSessions,
@@ -54,6 +58,11 @@ export function useAppInput({
 
     if (helpVisible) {
       handleHelpInput(key, setHelpVisible);
+      return;
+    }
+
+    if (memoryVisible) {
+      handleMemoryInput(key, setMemoryVisible);
       return;
     }
 
@@ -106,6 +115,15 @@ function handleHelpInput(
 ) {
   if (key.escape) {
     setHelpVisible(false);
+  }
+}
+
+function handleMemoryInput(
+  key: Key,
+  setMemoryVisible: UseAppInputOptions["setMemoryVisible"],
+) {
+  if (key.escape) {
+    setMemoryVisible(false);
   }
 }
 

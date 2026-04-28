@@ -14,6 +14,7 @@ interface UseSubmitHandlerOptions {
   onExitRequested(): void;
   sessionStore: SessionStore | null;
   setHelpVisible: Dispatch<SetStateAction<boolean>>;
+  setMemoryVisible: Dispatch<SetStateAction<boolean>>;
   setInput: Dispatch<SetStateAction<string>>;
   setIsStreaming: Dispatch<SetStateAction<boolean>>;
   setPendingConfirmations: Dispatch<SetStateAction<PendingConfirmation[]>>;
@@ -31,6 +32,7 @@ export function useSubmitHandler({
   onExitRequested,
   sessionStore,
   setHelpVisible,
+  setMemoryVisible,
   setInput,
   setIsStreaming,
   setPendingConfirmations,
@@ -62,6 +64,7 @@ export function useSubmitHandler({
           sessionStore,
           onExitRequested,
           setHelpVisible,
+          setMemoryVisible,
           setSessionDeleteConfirmId,
           setSnapshot,
           setSessions,
@@ -105,9 +108,10 @@ export function useSubmitHandler({
                 return current;
               }
 
+              const nextSnapshot = sessionStore.loadSession(current.session.id);
               return {
-                ...current,
-                messages: current.messages.map((message) =>
+                ...nextSnapshot,
+                messages: nextSnapshot.messages.map((message) =>
                   message.id === messageId ? { ...message, content } : message,
                 ),
               };
@@ -140,6 +144,7 @@ export function useSubmitHandler({
     onExitRequested,
     sessionStore,
     setHelpVisible,
+    setMemoryVisible,
     setInput,
     setIsStreaming,
     setPendingConfirmations,
