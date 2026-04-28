@@ -156,6 +156,7 @@ export function App({
   }
   const mode = overlayMode ?? (isStreaming ? "streaming" : "ready");
   const inputDisabledReason = overlayMode ?? (isStreaming ? "streaming" : undefined);
+  const isPanelVisible = helpVisible || memoryVisible || sessionsVisible;
 
   return (
     <Box flexDirection="column">
@@ -190,7 +191,9 @@ export function App({
             />
           </Box>
         ) : null}
-        <ChatList messages={activeSnapshot.messages} toolExecutions={activeSnapshot.toolExecutions} />
+        {isPanelVisible ? null : (
+          <ChatList messages={activeSnapshot.messages} toolExecutions={activeSnapshot.toolExecutions} />
+        )}
       </Box>
       <Box marginTop={1} flexDirection="column">
         <HorizontalDivider />

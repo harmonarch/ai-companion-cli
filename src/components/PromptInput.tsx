@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Box, Text, useInput, usePaste, useStdin, useStdout } from "ink";
 import pc from "picocolors";
 import { sanitizeSingleLineText } from "../utils/sanitize-text.js";
@@ -24,6 +24,14 @@ export function PromptInput({
   const { stdin, isRawModeSupported } = useStdin();
   const { write } = useStdout();
   const [hasTerminalFocus, setHasTerminalFocus] = useState(true);
+  const [cursorIndex, setCursorIndex] = useState(() => Array.from(value).length);
+  const cursorIndexRef = useRef(cursorIndex);
+  const characters = Array.from(value);
+  const textLengthRef = useRef(characters.length);
+
+  useEffect(() => {
+    textLengthRef.current = characters.length;
+  }, [characters.length]);
 
   useEffect(() => {
     if (!isRawModeSupported) {
@@ -58,6 +66,18 @@ export function PromptInput({
     };
   }, [isRawModeSupported, stdin, write]);
 
+  useEffect(() => {
+    const clampedCursorIndex = Math.min(Math.max(0, cursorIndexRef.current), characters.length);
+    cursorIndexRef.current = clampedCursorIndex;
+    setCursorIndex(clampedCursorIndex);
+  }, [characters.length]);
+
+  const moveCursor = (nextIndex: number, maxLength = textLengthRef.current) => {
+    const clamped = Math.min(Math.max(0, nextIndex), maxLength);
+    cursorIndexRef.current = clamped;
+    setCursorIndex(clamped);
+  };
+
   useInput((input, key) => {
     if (disabled) {
       return;
@@ -75,42 +95,124 @@ export function PromptInput({
       return;
     }
 
-    if (key.backspace || key.delete) {
-      onChange((current) => Array.from(current).slice(0, -1).join(""));
+    if (key.leftArrow) {
+      moveCursor(cursorIndexRef.current - 1);
       return;
     }
 
-    if (key.ctrl || key.meta || key.escape || key.upArrow || key.downArrow || key.leftArrow || key.rightArrow || key.tab) {
+    if (key.rightArrow) {
+      moveCursor(cursorIndexRef.current + 1);
+      return;
+    }
+
+    if (key.home) {
+      moveCursor(0);
+      return;
+    }
+
+    if (key.end) {
+      moveCursor(characters.length);
+      return;
+    }
+
+    if (key.backspace) {
+      if (cursorIndexRef.current === 0) {
+        return;
+      }
+
+      const deleteIndex = cursorIndexRef.current - 1;
+      onChange((current) => {
+        const currentCharacters = Array.from(current);
+        if (deleteIndex < 0 || deleteIndex >= currentCharacters.length) {
+          return current;
+        }
+
+        currentCharacters.splice(deleteIndex, 1);
+        textLengthRef.current = currentCharacters.length;
+        return currentCharacters.join("");
+      });
+      moveCursor(deleteIndex, Math.max(0, textLengthRef.current - 1));
+      return;
+    }
+
+    if (key.delete) {
+      const deleteIndex = cursorIndexRef.current;
+      onChange((current) => {
+        const currentCharacters = Array.from(current);
+        if (deleteIndex >= currentCharacters.length) {
+          return current;
+        }
+
+        currentCharacters.splice(deleteIndex, 1);
+        textLengthRef.current = currentCharacters.length;
+        return currentCharacters.join("");
+      });
+      if (deleteIndex < textLengthRef.current) {
+        textLengthRef.current = Math.max(0, textLengthRef.current - 1);
+      }
+      return;
+    }
+
+    if (key.ctrl || key.meta || key.escape || key.upArrow || key.downArrow || key.tab) {
       return;
     }
 
     if (input) {
-      onChange((current) => current + input);
+      const insertedCharacters = Array.from(input);
+      const insertAt = cursorIndexRef.current;
+      const nextLength = textLengthRef.current + insertedCharacters.length;
+      onChange((current) => {
+        const currentCharacters = Array.from(current);
+        currentCharacters.splice(Math.min(insertAt, currentCharacters.length), 0, ...insertedCharacters);
+        textLengthRef.current = currentCharacters.length;
+        return currentCharacters.join("");
+      });
+      textLengthRef.current = nextLength;
+      moveCursor(insertAt + insertedCharacters.length, nextLength);
     }
   }, { isActive: !disabled });
 
   usePaste((text) => {
-    if (disabled) {
+    if (disabled || !text) {
       return;
     }
 
-    if (text) {
-      onChange((current) => current + text);
-    }
+    const pastedCharacters = Array.from(text);
+    const insertAt = cursorIndexRef.current;
+    const nextLength = textLengthRef.current + pastedCharacters.length;
+    onChange((current) => {
+      const currentCharacters = Array.from(current);
+      currentCharacters.splice(Math.min(insertAt, currentCharacters.length), 0, ...pastedCharacters);
+      textLengthRef.current = currentCharacters.length;
+      return currentCharacters.join("");
+    });
+    textLengthRef.current = nextLength;
+    moveCursor(insertAt + pastedCharacters.length, nextLength);
   }, { isActive: !disabled });
 
   const isFocused = !disabled && hasTerminalFocus;
   const placeholder = getPlaceholder(disabledReason);
-  const safeValue = sanitizeSingleLineText(value, 500);
-  const hasValue = safeValue.length > 0;
-  const caret = isFocused ? pc.bgWhite(" ") : "";
+  const hasValue = characters.length > 0;
+  const isCursorAtEnd = cursorIndex >= characters.length;
+  const beforeCursor = sanitizeSingleLineText(characters.slice(0, cursorIndex).join(""), 500);
+  const cursorCharacter = characters[cursorIndex] ?? " ";
+  const visibleCursorCharacter = sanitizeSingleLineText(cursorCharacter, 1) || " ";
+  const afterCursor = sanitizeSingleLineText(
+    characters.slice(cursorIndex + (isCursorAtEnd ? 0 : 1)).join(""),
+    500,
+  );
 
   return (
     <Box>
       <Text>
         {pc.white("❯ ")}
-        {hasValue ? safeValue : isFocused ? caret : pc.gray(placeholder)}
-        {hasValue && isFocused ? caret : ""}
+        {hasValue ? (
+          <>
+            {beforeCursor}
+            {isFocused ? pc.black(pc.bgWhite(visibleCursorCharacter)) : isCursorAtEnd ? "" : visibleCursorCharacter}
+            {afterCursor}
+          </>
+        ) : isFocused ? pc.bgWhite(" ") : pc.gray(placeholder)}
       </Text>
     </Box>
   );
