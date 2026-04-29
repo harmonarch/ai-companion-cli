@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Box, Text, useInput, usePaste, useStdin, useStdout } from "ink";
 import pc from "picocolors";
+import { completeSlashCommand, getSlashCommandPreviewSuffix } from "../controller/slash-commands.js";
 import { sanitizeSingleLineText } from "../utils/sanitize-text.js";
 
 const TERMINAL_FOCUS_IN = "[I";
@@ -153,7 +154,19 @@ export function PromptInput({
       return;
     }
 
-    if (key.ctrl || key.meta || key.escape || key.upArrow || key.downArrow || key.tab) {
+    if (key.tab) {
+      const completion = completeSlashCommand(value, cursorIndexRef.current);
+      if (!completion) {
+        return;
+      }
+
+      onChange(completion.nextValue);
+      textLengthRef.current = Array.from(completion.nextValue).length;
+      moveCursor(completion.nextCursorIndex, textLengthRef.current);
+      return;
+    }
+
+    if (key.ctrl || key.meta || key.escape || key.upArrow || key.downArrow) {
       return;
     }
 
@@ -202,6 +215,16 @@ export function PromptInput({
     500,
   );
 
+  const previewSuffix = isFocused && isCursorAtEnd
+    ? getSlashCommandPreviewSuffix(value, cursorIndex)
+    : null;
+  const previewCharacters = previewSuffix ? Array.from(previewSuffix) : [];
+  const [previewCursorCharacter = " ", ...previewSuffixRest] = previewCharacters;
+  const visiblePreviewCursorCharacter = sanitizeSingleLineText(previewCursorCharacter, 1) || " ";
+  const visiblePreviewSuffixRest = previewSuffixRest.length > 0
+    ? sanitizeSingleLineText(previewSuffixRest.join(""), 500)
+    : null;
+
   return (
     <Box>
       <Text>
@@ -209,8 +232,15 @@ export function PromptInput({
         {hasValue ? (
           <>
             {beforeCursor}
-            {isFocused ? pc.black(pc.bgWhite(visibleCursorCharacter)) : isCursorAtEnd ? "" : visibleCursorCharacter}
+            {isFocused
+              ? previewCharacters.length > 0
+                ? pc.gray(pc.inverse(visiblePreviewCursorCharacter))
+                : pc.black(pc.bgWhite(visibleCursorCharacter))
+              : isCursorAtEnd
+                ? ""
+                : visibleCursorCharacter}
             {afterCursor}
+            {visiblePreviewSuffixRest ? pc.gray(visiblePreviewSuffixRest) : null}
           </>
         ) : isFocused ? pc.bgWhite(" ") : pc.gray(placeholder)}
       </Text>
