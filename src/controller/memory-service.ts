@@ -45,35 +45,6 @@ export class MemoryService {
   deleteSessionState(sessionId: string) {
     this.scratchpadRepository.deleteBySession(sessionId);
     this.candidateRepository.deleteBySession(sessionId);
-
-    const now = new Date().toISOString();
-    const sessionMemories = this.memoryRecordRepository.listBySession(this.getScope(), sessionId, { includeLegacy: false });
-
-    for (const memory of sessionMemories) {
-      if (memory.status === "deleted" || memory.deletedAt) {
-        continue;
-      }
-
-      const deletedMemory = this.memoryRecordRepository.update(memory.id, {
-        status: "deleted",
-        deletedAt: now,
-        updatedAt: now,
-      });
-
-      this.memoryAuditRepository.create({
-        ...this.getScope(),
-        targetId: deletedMemory.id,
-        targetType: "memory",
-        action: "delete",
-        actor: "system",
-        sessionId,
-        before: snapshotMemory(memory),
-        after: snapshotMemory(deletedMemory),
-        reason: "session deleted",
-        sourceRefs: deletedMemory.sourceRefs,
-        timestamp: now,
-      });
-    }
   }
 
   resetAll() {
@@ -120,13 +91,13 @@ export class MemoryService {
     return this.scratchpadRepository.upsert(scratchpad);
   }
 
-  retrieveForPrompt(sessionId?: string) {
+  retrieveForPrompt() {
     if (!this.isEnabled()) {
       return { records: [], context: "" };
     }
 
     const now = Date.now();
-    const records = this.listMemories(sessionId)
+    const records = this.listMemories()
       .filter((record) => record.status === "active")
       .filter((record) => !record.deletedAt)
       .filter((record) => !record.expiresAt || Date.parse(record.expiresAt) > now)
@@ -139,14 +110,12 @@ export class MemoryService {
     };
   }
 
-  listMemories(sessionId?: string) {
+  listMemories() {
     if (!this.isEnabled()) {
       return [];
     }
 
-    const records = sessionId
-      ? this.memoryRecordRepository.listBySession(this.getScope(), sessionId, { includeLegacy: true })
-      : this.memoryRecordRepository.listByScope(this.getScope());
+    const records = this.memoryRecordRepository.listByScope(this.getScope());
 
     return records
       .filter((record) => record.status !== "deleted")
@@ -428,13 +397,13 @@ export class MemoryService {
     }
 
     const tombstone = this.memoryRecordRepository
-      .findBySubject(this.getScope(), candidate.subject, candidate.type, candidate.sessionId)
+      .findBySubject(this.getScope(), candidate.subject, candidate.type)
       .find((record) => record.status === "deleted");
     if (tombstone) {
       return reject("subject was deleted before and now requires explicit reconfirmation", "needs_confirmation");
     }
 
-    const related = this.memoryRecordRepository.findBySubject(this.getScope(), candidate.subject, candidate.type, candidate.sessionId);
+    const related = this.memoryRecordRepository.findBySubject(this.getScope(), candidate.subject, candidate.type);
     const active = related.find((record) => record.status === "active");
 
     if (!active) {

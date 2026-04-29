@@ -64,7 +64,7 @@ export class SessionStore {
       provider: this.defaults.provider,
       model: this.defaults.model,
     });
-    const memories = this.memoryService.listMemories(session.id);
+    const memories = this.memoryService.listMemories();
     const context = this.createResolutionContext();
 
     return {
@@ -82,7 +82,7 @@ export class SessionStore {
       throw new Error(`Session not found: ${sessionId}`);
     }
 
-    const memories = this.memoryService.listMemories(sessionId);
+    const memories = this.memoryService.listMemories();
     const context = this.createResolutionContext();
 
     return {

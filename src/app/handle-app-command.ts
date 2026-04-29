@@ -18,7 +18,6 @@ interface HandleAppCommandOptions {
   setMemoryViewId: Dispatch<SetStateAction<string | null>>;
   setPendingResetConfirmation: Dispatch<SetStateAction<boolean>>;
   setSelectedMemoryIndex: Dispatch<SetStateAction<number>>;
-  setSelectedMemorySessionIndex: Dispatch<SetStateAction<number>>;
   setSessionDeleteConfirmId: Dispatch<SetStateAction<string | null>>;
   setSnapshot: Dispatch<SetStateAction<SessionSnapshot | null>>;
   setSessions: Dispatch<SetStateAction<SessionSummary[]>>;
@@ -41,7 +40,6 @@ export async function handleAppCommand({
   setMemoryViewId,
   setPendingResetConfirmation,
   setSelectedMemoryIndex,
-  setSelectedMemorySessionIndex,
   setSessionDeleteConfirmId,
   setSnapshot,
   setSessions,
@@ -135,10 +133,7 @@ export async function handleAppCommand({
         }
       }
 
-      const nextSessions = sessionStore.listSessions();
-      const currentSessionId = activeSnapshot?.session.id ?? nextSessions[0]?.id;
-      const selectedIndex = findSessionIndex(nextSessions, currentSessionId);
-      const initialMemorySnapshot = currentSessionId ? sessionStore.loadSession(currentSessionId) : null;
+      const initialMemorySnapshot = activeSnapshot ?? sessionStore.ensureSession();
       setPendingResetConfirmation(false);
       setHelpVisible(false);
       setSessionsVisible(false);
@@ -147,11 +142,10 @@ export async function handleAppCommand({
       setMemoryEditState(null);
       setMemorySnapshot(initialMemorySnapshot);
       setMemoryViewId(null);
-      setSessions(nextSessions);
+      setSessions(sessionStore.listSessions());
       setSelectedMemoryIndex(0);
-      setSelectedMemorySessionIndex(selectedIndex);
-      setMemoryOverlayMode("session_list");
-      setStatusMessage("Memory opened. Select a session to view its memories.");
+      setMemoryOverlayMode("memory_list");
+      setStatusMessage("Memory opened.");
       return;
     }
     case "reset": {
@@ -198,7 +192,6 @@ export async function handleAppCommand({
       setMemoryViewId(null);
       setMemoryOverlayMode("hidden");
       setSelectedSessionIndex(0);
-      setSelectedMemorySessionIndex(0);
       setSelectedMemoryIndex(0);
       setSnapshot(nextSnapshot);
       setSessions(sessionStore.listSessions());

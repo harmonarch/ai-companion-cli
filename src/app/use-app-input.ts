@@ -24,7 +24,6 @@ interface UseAppInputOptions {
   sessionsVisible: boolean;
   sessions: SessionSummary[];
   selectedMemoryIndex: number;
-  selectedMemorySessionIndex: number;
   selectedSessionIndex: number;
   sessionStore: SessionStore | null;
   setHelpVisible: Dispatch<SetStateAction<boolean>>;
@@ -39,7 +38,6 @@ interface UseAppInputOptions {
   setStatusMessage: Dispatch<SetStateAction<string | undefined>>;
   setSessionsVisible: Dispatch<SetStateAction<boolean>>;
   setSelectedMemoryIndex: Dispatch<SetStateAction<number>>;
-  setSelectedMemorySessionIndex: Dispatch<SetStateAction<number>>;
   setSelectedSessionIndex: Dispatch<SetStateAction<number>>;
   setSnapshot: Dispatch<SetStateAction<SessionSnapshot | null>>;
 }
@@ -57,7 +55,6 @@ export function useAppInput({
   sessionsVisible,
   sessions,
   selectedMemoryIndex,
-  selectedMemorySessionIndex,
   selectedSessionIndex,
   sessionStore,
   setHelpVisible,
@@ -72,7 +69,6 @@ export function useAppInput({
   setStatusMessage,
   setSessionsVisible,
   setSelectedMemoryIndex,
-  setSelectedMemorySessionIndex,
   setSelectedSessionIndex,
   setSnapshot,
 }: UseAppInputOptions) {
@@ -91,23 +87,18 @@ export function useAppInput({
       handleMemoryInput({
         inputChar,
         key,
-        activeSnapshot,
         memoryDeleteConfirmId,
         memoryEditState,
-        memoryOverlayMode,
         memorySnapshot,
         memoryViewId,
         selectedMemoryIndex,
-        selectedMemorySessionIndex,
         sessionStore,
-        sessions,
         setMemoryDeleteConfirmId,
         setMemoryEditState,
         setMemoryOverlayMode,
         setMemorySnapshot,
         setMemoryViewId,
         setSelectedMemoryIndex,
-        setSelectedMemorySessionIndex,
         setSnapshot,
         setStatusMessage,
       });
@@ -169,66 +160,38 @@ function handleHelpInput(
 function handleMemoryInput({
   inputChar,
   key,
-  activeSnapshot,
   memoryDeleteConfirmId,
   memoryEditState,
-  memoryOverlayMode,
   memorySnapshot,
   memoryViewId,
   selectedMemoryIndex,
-  selectedMemorySessionIndex,
   sessionStore,
-  sessions,
   setMemoryDeleteConfirmId,
   setMemoryEditState,
   setMemoryOverlayMode,
   setMemorySnapshot,
   setMemoryViewId,
   setSelectedMemoryIndex,
-  setSelectedMemorySessionIndex,
   setSnapshot,
   setStatusMessage,
 }: {
   inputChar: string;
   key: Key;
-  activeSnapshot: SessionSnapshot | null;
   memoryDeleteConfirmId: string | null;
   memoryEditState: MemoryEditState | null;
-  memoryOverlayMode: MemoryOverlayMode;
   memorySnapshot: SessionSnapshot | null;
   memoryViewId: string | null;
   selectedMemoryIndex: number;
-  selectedMemorySessionIndex: number;
   sessionStore: SessionStore | null;
-  sessions: SessionSummary[];
   setMemoryDeleteConfirmId: UseAppInputOptions["setMemoryDeleteConfirmId"];
   setMemoryEditState: UseAppInputOptions["setMemoryEditState"];
   setMemoryOverlayMode: UseAppInputOptions["setMemoryOverlayMode"];
   setMemorySnapshot: UseAppInputOptions["setMemorySnapshot"];
   setMemoryViewId: UseAppInputOptions["setMemoryViewId"];
   setSelectedMemoryIndex: UseAppInputOptions["setSelectedMemoryIndex"];
-  setSelectedMemorySessionIndex: UseAppInputOptions["setSelectedMemorySessionIndex"];
   setSnapshot: UseAppInputOptions["setSnapshot"];
   setStatusMessage: UseAppInputOptions["setStatusMessage"];
 }) {
-  if (memoryOverlayMode === "session_list") {
-    handleMemorySessionListInput({
-      key,
-      sessions,
-      selectedMemorySessionIndex,
-      sessionStore,
-      setMemoryDeleteConfirmId,
-      setMemoryEditState,
-      setMemoryOverlayMode,
-      setMemorySnapshot,
-      setMemoryViewId,
-      setSelectedMemoryIndex,
-      setSelectedMemorySessionIndex,
-      setSnapshot,
-      setStatusMessage,
-    });
-    return;
-  }
 
   const memories = memorySnapshot?.memories ?? [];
   const selected = memories[selectedMemoryIndex];
@@ -252,7 +215,7 @@ function handleMemoryInput({
         sessionStore.updateMemory(memoryEditState.memoryId, {
           subject: memoryEditState.subject.value,
           value: memoryEditState.value.value,
-        }, memorySnapshot.session.id);
+        });
         const nextSnapshot = sessionStore.loadSession(memorySnapshot.session.id);
         setSnapshot((current) => current?.session.id === nextSnapshot.session.id ? nextSnapshot : current);
         setMemorySnapshot(nextSnapshot);
@@ -279,7 +242,7 @@ function handleMemoryInput({
       setMemoryEditState(null);
       setMemoryViewId(null);
       setMemorySnapshot(null);
-      setMemoryOverlayMode("session_list");
+      setMemoryOverlayMode("hidden");
     }
     return;
   }
@@ -296,7 +259,7 @@ function handleMemoryInput({
 
     try {
       const deletedIndex = selectedMemoryIndex;
-      sessionStore.deleteMemory(selected.id, memorySnapshot.session.id);
+      sessionStore.deleteMemory(selected.id);
       const nextSnapshot = sessionStore.loadSession(memorySnapshot.session.id);
       setSnapshot((current) => current?.session.id === nextSnapshot.session.id ? nextSnapshot : current);
       setMemorySnapshot(nextSnapshot);
@@ -318,7 +281,7 @@ function handleMemoryInput({
     setMemoryEditState(null);
     setMemoryViewId(null);
     setMemorySnapshot(null);
-    setMemoryOverlayMode("session_list");
+    setMemoryOverlayMode("hidden");
     return;
   }
 
@@ -346,80 +309,6 @@ function handleMemoryInput({
 
   if (key.return || inputChar === "v" || inputChar === "V") {
     setMemoryViewId((current) => current === selected.id ? null : selected.id);
-  }
-}
-
-function handleMemorySessionListInput({
-  key,
-  sessions,
-  selectedMemorySessionIndex,
-  sessionStore,
-  setMemoryDeleteConfirmId,
-  setMemoryEditState,
-  setMemoryOverlayMode,
-  setMemorySnapshot,
-  setMemoryViewId,
-  setSelectedMemoryIndex,
-  setSelectedMemorySessionIndex,
-  setSnapshot,
-  setStatusMessage,
-}: {
-  key: Key;
-  sessions: SessionSummary[];
-  selectedMemorySessionIndex: number;
-  sessionStore: SessionStore | null;
-  setMemoryDeleteConfirmId: UseAppInputOptions["setMemoryDeleteConfirmId"];
-  setMemoryEditState: UseAppInputOptions["setMemoryEditState"];
-  setMemoryOverlayMode: UseAppInputOptions["setMemoryOverlayMode"];
-  setMemorySnapshot: UseAppInputOptions["setMemorySnapshot"];
-  setMemoryViewId: UseAppInputOptions["setMemoryViewId"];
-  setSelectedMemoryIndex: UseAppInputOptions["setSelectedMemoryIndex"];
-  setSelectedMemorySessionIndex: UseAppInputOptions["setSelectedMemorySessionIndex"];
-  setSnapshot: UseAppInputOptions["setSnapshot"];
-  setStatusMessage: UseAppInputOptions["setStatusMessage"];
-}) {
-  const selected = sessions[selectedMemorySessionIndex];
-
-  if (!selected || !sessionStore) {
-    if (key.escape) {
-      setMemoryOverlayMode("hidden");
-      setMemorySnapshot(null);
-    }
-    return;
-  }
-
-  if (key.escape) {
-    setMemoryOverlayMode("hidden");
-    setMemorySnapshot(null);
-    return;
-  }
-
-  if (key.upArrow) {
-    setSelectedMemorySessionIndex((current) => Math.max(0, current - 1));
-    return;
-  }
-
-  if (key.downArrow) {
-    setSelectedMemorySessionIndex((current) => Math.min(Math.max(0, sessions.length - 1), current + 1));
-    return;
-  }
-
-  if (!key.return) {
-    return;
-  }
-
-  try {
-    const nextSnapshot = sessionStore.loadSession(selected.id);
-    setMemorySnapshot(nextSnapshot);
-    setSelectedMemoryIndex(0);
-    setMemoryDeleteConfirmId(null);
-    setMemoryEditState(null);
-    setMemoryViewId(null);
-    setMemoryOverlayMode("memory_list");
-    setStatusMessage(`Viewing memories for ${selected.title}.`);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    setStatusMessage(`Error: ${message}`);
   }
 }
 

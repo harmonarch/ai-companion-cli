@@ -23,7 +23,7 @@ interface AppServices {
   error: string | null;
 }
 
-export type MemoryOverlayMode = "hidden" | "session_list" | "memory_list";
+export type MemoryOverlayMode = "hidden" | "memory_list";
 
 export interface MemoryEditState {
   memoryId: string;
@@ -63,7 +63,6 @@ export function App({
   const [sessionsVisible, setSessionsVisible] = useState(false);
   const [selectedSessionIndex, setSelectedSessionIndex] = useState(0);
   const [selectedMemoryIndex, setSelectedMemoryIndex] = useState(0);
-  const [selectedMemorySessionIndex, setSelectedMemorySessionIndex] = useState(0);
   const [sessionDeleteConfirmId, setSessionDeleteConfirmId] = useState<string | null>(null);
   const [memoryDeleteConfirmId, setMemoryDeleteConfirmId] = useState<string | null>(null);
   const [memoryViewId, setMemoryViewId] = useState<string | null>(null);
@@ -127,7 +126,6 @@ export function App({
     sessionsVisible,
     sessions,
     selectedMemoryIndex,
-    selectedMemorySessionIndex,
     selectedSessionIndex,
     sessionStore: services.sessionStore,
     setHelpVisible,
@@ -142,7 +140,6 @@ export function App({
     setStatusMessage,
     setSessionsVisible,
     setSelectedMemoryIndex,
-    setSelectedMemorySessionIndex,
     setSelectedSessionIndex,
     setSnapshot,
   });
@@ -164,7 +161,6 @@ export function App({
     setPendingConfirmations,
     setPendingResetConfirmation,
     setSelectedMemoryIndex,
-    setSelectedMemorySessionIndex,
     setSelectedSessionIndex,
     setSessionDeleteConfirmId,
     setSessions,
@@ -219,17 +215,6 @@ export function App({
             <HelpList />
           </Box>
         ) : null}
-        {memoryOverlayMode === "session_list" ? (
-          <Box marginBottom={1}>
-            <SessionList
-              title="memory sessions"
-              sessions={sessions}
-              selectedIndex={selectedMemorySessionIndex}
-              deleteConfirmSessionId={null}
-              mode="select"
-            />
-          </Box>
-        ) : null}
         {memoryOverlayMode === "memory_list" ? (
           <Box marginBottom={1}>
             <MemoryList
@@ -238,8 +223,6 @@ export function App({
               deleteConfirmMemoryId={memoryDeleteConfirmId}
               viewMemoryId={memoryViewId}
               editState={memoryEditState}
-              sessionTitle={memorySnapshot?.session.title}
-              escapeHint="Esc back"
             />
           </Box>
         ) : null}

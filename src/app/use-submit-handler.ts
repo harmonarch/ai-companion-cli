@@ -26,7 +26,6 @@ interface UseSubmitHandlerOptions {
   setPendingConfirmations: Dispatch<SetStateAction<PendingConfirmation[]>>;
   setPendingResetConfirmation: Dispatch<SetStateAction<boolean>>;
   setSelectedMemoryIndex: Dispatch<SetStateAction<number>>;
-  setSelectedMemorySessionIndex: Dispatch<SetStateAction<number>>;
   setSelectedSessionIndex: Dispatch<SetStateAction<number>>;
   setSessionDeleteConfirmId: Dispatch<SetStateAction<string | null>>;
   setSessions: Dispatch<SetStateAction<SessionSummary[]>>;
@@ -52,7 +51,6 @@ export function useSubmitHandler({
   setPendingConfirmations,
   setPendingResetConfirmation,
   setSelectedMemoryIndex,
-  setSelectedMemorySessionIndex,
   setSelectedSessionIndex,
   setSessionDeleteConfirmId,
   setSessions,
@@ -94,7 +92,6 @@ export function useSubmitHandler({
           setSessions,
           setSessionsVisible,
           setSelectedMemoryIndex,
-          setSelectedMemorySessionIndex,
           setSelectedSessionIndex,
           setStatusMessage,
         });
@@ -182,7 +179,6 @@ export function useSubmitHandler({
     setPendingConfirmations,
     setPendingResetConfirmation,
     setSelectedMemoryIndex,
-    setSelectedMemorySessionIndex,
     setSelectedSessionIndex,
     setSessionDeleteConfirmId,
     setSessions,
