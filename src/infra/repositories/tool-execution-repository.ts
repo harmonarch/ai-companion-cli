@@ -58,6 +58,12 @@ export class ToolExecutionRepository {
       }
     }
   }
+
+  deleteAll() {
+    for (const record of listToolExecutions(this.store)) {
+      this.store.delete(getToolExecutionPath(record.id));
+    }
+  }
 }
 
 function listToolExecutions(store: FileStore) {

@@ -53,6 +53,12 @@ export class MemoryCandidateRepository {
       this.store.delete(getCandidatePath(candidate.id));
     }
   }
+
+  deleteAll() {
+    for (const candidate of listCandidates(this.store)) {
+      this.store.delete(getCandidatePath(candidate.id));
+    }
+  }
 }
 
 function listCandidates(store: FileStore) {

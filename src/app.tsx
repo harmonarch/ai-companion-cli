@@ -23,6 +23,21 @@ interface AppServices {
   error: string | null;
 }
 
+export type MemoryOverlayMode = "hidden" | "session_list" | "memory_list";
+
+export interface MemoryEditState {
+  memoryId: string;
+  activeField: "subject" | "value";
+  subject: {
+    value: string;
+    cursorIndex: number;
+  };
+  value: {
+    value: string;
+    cursorIndex: number;
+  };
+}
+
 export function App({
   initialSessionId,
   onExitRequested,
@@ -38,16 +53,23 @@ export function App({
   });
 
   const [snapshot, setSnapshot] = useState<SessionSnapshot | null>(null);
+  const [memorySnapshot, setMemorySnapshot] = useState<SessionSnapshot | null>(null);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string>();
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [helpVisible, setHelpVisible] = useState(false);
-  const [memoryVisible, setMemoryVisible] = useState(false);
+  const [memoryOverlayMode, setMemoryOverlayMode] = useState<MemoryOverlayMode>("hidden");
   const [sessionsVisible, setSessionsVisible] = useState(false);
   const [selectedSessionIndex, setSelectedSessionIndex] = useState(0);
+  const [selectedMemoryIndex, setSelectedMemoryIndex] = useState(0);
+  const [selectedMemorySessionIndex, setSelectedMemorySessionIndex] = useState(0);
   const [sessionDeleteConfirmId, setSessionDeleteConfirmId] = useState<string | null>(null);
+  const [memoryDeleteConfirmId, setMemoryDeleteConfirmId] = useState<string | null>(null);
+  const [memoryViewId, setMemoryViewId] = useState<string | null>(null);
+  const [memoryEditState, setMemoryEditState] = useState<MemoryEditState | null>(null);
   const [pendingConfirmations, setPendingConfirmations] = useState<PendingConfirmation[]>([]);
+  const [pendingResetConfirmation, setPendingResetConfirmation] = useState(false);
 
   useEffect(() => {
     try {
@@ -96,19 +118,31 @@ export function App({
     activeConfirmation,
     activeSnapshot: snapshot,
     helpVisible,
-    memoryVisible,
+    memoryDeleteConfirmId,
+    memoryEditState,
+    memoryOverlayMode,
+    memorySnapshot,
+    memoryViewId,
     sessionDeleteConfirmId,
     sessionsVisible,
     sessions,
+    selectedMemoryIndex,
+    selectedMemorySessionIndex,
     selectedSessionIndex,
     sessionStore: services.sessionStore,
     setHelpVisible,
-    setMemoryVisible,
+    setMemoryDeleteConfirmId,
+    setMemoryEditState,
+    setMemoryOverlayMode,
+    setMemorySnapshot,
+    setMemoryViewId,
     setPendingConfirmations,
     setSessionDeleteConfirmId,
     setSessions,
     setStatusMessage,
     setSessionsVisible,
+    setSelectedMemoryIndex,
+    setSelectedMemorySessionIndex,
     setSelectedSessionIndex,
     setSnapshot,
   });
@@ -117,12 +151,20 @@ export function App({
     activeSnapshot: snapshot,
     controller: services.controller,
     onExitRequested: onExitRequested ?? exit,
+    pendingResetConfirmation,
     sessionStore: services.sessionStore,
     setHelpVisible,
-    setMemoryVisible,
+    setMemoryDeleteConfirmId,
+    setMemoryEditState,
+    setMemoryOverlayMode,
+    setMemorySnapshot,
+    setMemoryViewId,
     setInput,
     setIsStreaming,
     setPendingConfirmations,
+    setPendingResetConfirmation,
+    setSelectedMemoryIndex,
+    setSelectedMemorySessionIndex,
     setSelectedSessionIndex,
     setSessionDeleteConfirmId,
     setSessions,
@@ -149,14 +191,14 @@ export function App({
     overlayMode = "confirm";
   } else if (sessionsVisible) {
     overlayMode = "sessions";
-  } else if (memoryVisible) {
+  } else if (memoryOverlayMode !== "hidden") {
     overlayMode = "memory";
   } else if (helpVisible) {
     overlayMode = "help";
   }
   const mode = overlayMode ?? (isStreaming ? "streaming" : "ready");
   const inputDisabledReason = overlayMode ?? (isStreaming ? "streaming" : undefined);
-  const isPanelVisible = helpVisible || memoryVisible || sessionsVisible;
+  const isPanelVisible = helpVisible || memoryOverlayMode !== "hidden" || sessionsVisible;
 
   return (
     <Box flexDirection="column">
@@ -177,9 +219,28 @@ export function App({
             <HelpList />
           </Box>
         ) : null}
-        {memoryVisible ? (
+        {memoryOverlayMode === "session_list" ? (
           <Box marginBottom={1}>
-            <MemoryList memories={activeSnapshot.memories} />
+            <SessionList
+              title="memory sessions"
+              sessions={sessions}
+              selectedIndex={selectedMemorySessionIndex}
+              deleteConfirmSessionId={null}
+              mode="select"
+            />
+          </Box>
+        ) : null}
+        {memoryOverlayMode === "memory_list" ? (
+          <Box marginBottom={1}>
+            <MemoryList
+              memoryDetails={memorySnapshot?.memoryDetails ?? []}
+              selectedIndex={selectedMemoryIndex}
+              deleteConfirmMemoryId={memoryDeleteConfirmId}
+              viewMemoryId={memoryViewId}
+              editState={memoryEditState}
+              sessionTitle={memorySnapshot?.session.title}
+              escapeHint="Esc back"
+            />
           </Box>
         ) : null}
         {sessionsVisible ? (
@@ -203,7 +264,7 @@ export function App({
           onSubmit={(next) => {
             void handleSubmit(next);
           }}
-          disabled={isStreaming || helpVisible || memoryVisible || sessionsVisible || Boolean(activeConfirmation)}
+          disabled={isStreaming || helpVisible || memoryOverlayMode !== "hidden" || sessionsVisible || Boolean(activeConfirmation)}
           disabledReason={inputDisabledReason}
         />
         <HorizontalDivider />

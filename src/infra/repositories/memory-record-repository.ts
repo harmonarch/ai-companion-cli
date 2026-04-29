@@ -48,8 +48,19 @@ export class MemoryRecordRepository {
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }
 
-  findBySubject(scope: MemoryScope, subject: string, type?: MemoryType) {
-    return this.listByScope(scope).filter((record) => record.subject === subject && (type ? record.type === type : true));
+  listBySession(scope: MemoryScope, sessionId: string, options?: { includeLegacy?: boolean }) {
+    return this.listByScope(scope).filter((record) => record.sessionId === sessionId || (options?.includeLegacy && !record.sessionId));
+  }
+
+  findBySubject(scope: MemoryScope, subject: string, type?: MemoryType, sessionId?: string) {
+    const records = sessionId ? this.listBySession(scope, sessionId, { includeLegacy: false }) : this.listByScope(scope);
+    return records.filter((record) => record.subject === subject && (type ? record.type === type : true));
+  }
+
+  deleteByScope(scope: MemoryScope) {
+    for (const record of this.listByScope(scope)) {
+      this.store.delete(getMemoryPath(record.id));
+    }
   }
 }
 
@@ -71,6 +82,7 @@ function parseMemoryRecord(value: unknown): MemoryRecord {
     id: readString(record.id, "memory.id"),
     userId: readString(record.userId, "memory.userId"),
     workspaceScope: readString(record.workspaceScope, "memory.workspaceScope"),
+    sessionId: readOptionalString(record.sessionId, "memory.sessionId"),
     kind: readKind(record.kind),
     type: readMemoryType(record.type),
     subject: readString(record.subject, "memory.subject"),

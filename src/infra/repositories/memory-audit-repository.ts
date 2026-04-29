@@ -21,6 +21,12 @@ export class MemoryAuditRepository {
       .filter((event) => event.userId === scope.userId && event.workspaceScope === scope.workspaceScope)
       .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
   }
+
+  deleteByScope(scope: MemoryScope) {
+    for (const event of this.listByScope(scope)) {
+      this.store.delete(getAuditPath(event.eventId));
+    }
+  }
 }
 
 function listAudits(store: FileStore) {

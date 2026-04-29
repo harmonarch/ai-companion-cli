@@ -42,6 +42,51 @@ export class MemoryService {
     private readonly memoryAuditRepository: MemoryAuditRepository,
   ) {}
 
+  deleteSessionState(sessionId: string) {
+    this.scratchpadRepository.deleteBySession(sessionId);
+    this.candidateRepository.deleteBySession(sessionId);
+
+    const now = new Date().toISOString();
+    const sessionMemories = this.memoryRecordRepository.listBySession(this.getScope(), sessionId, { includeLegacy: false });
+
+    for (const memory of sessionMemories) {
+      if (memory.status === "deleted" || memory.deletedAt) {
+        continue;
+      }
+
+      const deletedMemory = this.memoryRecordRepository.update(memory.id, {
+        status: "deleted",
+        deletedAt: now,
+        updatedAt: now,
+      });
+
+      this.memoryAuditRepository.create({
+        ...this.getScope(),
+        targetId: deletedMemory.id,
+        targetType: "memory",
+        action: "delete",
+        actor: "system",
+        sessionId,
+        before: snapshotMemory(memory),
+        after: snapshotMemory(deletedMemory),
+        reason: "session deleted",
+        sourceRefs: deletedMemory.sourceRefs,
+        timestamp: now,
+      });
+    }
+  }
+
+  resetAll() {
+    if (!this.isEnabled()) {
+      return;
+    }
+
+    this.scratchpadRepository.deleteAll();
+    this.candidateRepository.deleteAll();
+    this.memoryRecordRepository.deleteByScope(this.getScope());
+    this.memoryAuditRepository.deleteByScope(this.getScope());
+  }
+
   isEnabled() {
     return this.config.enabled;
   }
@@ -75,14 +120,13 @@ export class MemoryService {
     return this.scratchpadRepository.upsert(scratchpad);
   }
 
-  retrieveForPrompt() {
+  retrieveForPrompt(sessionId?: string) {
     if (!this.isEnabled()) {
       return { records: [], context: "" };
     }
 
     const now = Date.now();
-    const records = this.memoryRecordRepository
-      .listByScope(this.getScope())
+    const records = this.listMemories(sessionId)
       .filter((record) => record.status === "active")
       .filter((record) => !record.deletedAt)
       .filter((record) => !record.expiresAt || Date.parse(record.expiresAt) > now)
@@ -95,23 +139,29 @@ export class MemoryService {
     };
   }
 
-  listMemories() {
+  listMemories(sessionId?: string) {
     if (!this.isEnabled()) {
       return [];
     }
 
-    return this.memoryRecordRepository
-      .listByScope(this.getScope())
+    const records = sessionId
+      ? this.memoryRecordRepository.listBySession(this.getScope(), sessionId, { includeLegacy: true })
+      : this.memoryRecordRepository.listByScope(this.getScope());
+
+    return records
       .filter((record) => record.status !== "deleted")
       .filter((record) => !record.deletedAt);
   }
 
-  deleteMemory(memoryId: string) {
+  deleteMemory(memoryId: string, sessionId?: string) {
     const existing = this.memoryRecordRepository.getById(memoryId);
     if (!existing) {
       throw new Error(`Memory not found: ${memoryId}`);
     }
     if (existing.userId !== this.config.userId || existing.workspaceScope !== this.config.workspaceScope) {
+      throw new Error(`Memory not found: ${memoryId}`);
+    }
+    if (sessionId && existing.sessionId !== sessionId) {
       throw new Error(`Memory not found: ${memoryId}`);
     }
     if (existing.status === "deleted") {
@@ -134,6 +184,54 @@ export class MemoryService {
       before: snapshotMemory(existing),
       after: snapshotMemory(next),
       reason: "deleted by user",
+      sourceRefs: next.sourceRefs,
+      timestamp: now,
+    });
+
+    return next;
+  }
+
+  updateMemory(memoryId: string, patch: { subject?: string; value?: string }, sessionId?: string) {
+    const existing = this.memoryRecordRepository.getById(memoryId);
+    if (!existing) {
+      throw new Error(`Memory not found: ${memoryId}`);
+    }
+    if (existing.userId !== this.config.userId || existing.workspaceScope !== this.config.workspaceScope) {
+      throw new Error(`Memory not found: ${memoryId}`);
+    }
+    if (sessionId && existing.sessionId !== sessionId) {
+      throw new Error(`Memory not found: ${memoryId}`);
+    }
+
+    const subject = patch.subject === undefined ? existing.subject : normalizeText(patch.subject).slice(0, 120);
+    const value = patch.value === undefined ? existing.value : normalizeText(patch.value).slice(0, 280);
+
+    if (!subject) {
+      throw new Error("Memory subject is required.");
+    }
+    if (!value) {
+      throw new Error("Memory value is required.");
+    }
+    if (subject === existing.subject && value === existing.value) {
+      return existing;
+    }
+
+    const now = new Date().toISOString();
+    const next = this.memoryRecordRepository.update(memoryId, {
+      subject,
+      value,
+      updatedAt: now,
+    });
+
+    this.memoryAuditRepository.create({
+      ...this.getScope(),
+      targetId: next.id,
+      targetType: "memory",
+      action: "update",
+      actor: "user",
+      before: snapshotMemory(existing),
+      after: snapshotMemory(next),
+      reason: "edited by user",
       sourceRefs: next.sourceRefs,
       timestamp: now,
     });
@@ -330,13 +428,13 @@ export class MemoryService {
     }
 
     const tombstone = this.memoryRecordRepository
-      .findBySubject(this.getScope(), candidate.subject, candidate.type)
+      .findBySubject(this.getScope(), candidate.subject, candidate.type, candidate.sessionId)
       .find((record) => record.status === "deleted");
     if (tombstone) {
       return reject("subject was deleted before and now requires explicit reconfirmation", "needs_confirmation");
     }
 
-    const related = this.memoryRecordRepository.findBySubject(this.getScope(), candidate.subject, candidate.type);
+    const related = this.memoryRecordRepository.findBySubject(this.getScope(), candidate.subject, candidate.type, candidate.sessionId);
     const active = related.find((record) => record.status === "active");
 
     if (!active) {
@@ -380,6 +478,7 @@ function candidateToRecord(candidate: MemoryCandidate) {
   return {
     userId: candidate.userId,
     workspaceScope: candidate.workspaceScope,
+    sessionId: candidate.sessionId,
     type: candidate.type,
     subject: candidate.subject,
     value: candidate.value,

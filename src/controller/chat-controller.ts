@@ -109,7 +109,7 @@ export class ChatController {
         promptLoader: this.promptLoader,
         session,
       });
-      const memoryContext = this.memoryService.retrieveForPrompt().context;
+      const memoryContext = this.memoryService.retrieveForPrompt(session.id).context;
 
       for await (const event of graph.streamEvents(buildGraphInput(selectedHistory, systemPrompt, memoryContext), { version: "v2" })) {
         switch (event.event) {

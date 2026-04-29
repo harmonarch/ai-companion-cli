@@ -45,6 +45,12 @@ export class RunRepository {
     }
   }
 
+  deleteAll() {
+    for (const run of listRuns(this.store)) {
+      this.store.delete(getRunPath(run.id));
+    }
+  }
+
   markFirstToken(runId: string, at = new Date().toISOString()) {
     const run = this.requireRun(runId);
     this.store.writeJson(getRunPath(runId), {

@@ -74,6 +74,12 @@ export class SessionRepository {
   delete(sessionId: string) {
     this.store.delete(getSessionPath(sessionId));
   }
+
+  deleteAll() {
+    for (const session of this.list()) {
+      this.store.delete(getSessionPath(session.id));
+    }
+  }
 }
 
 function parseSessionRecord(value: unknown): SessionRecord {

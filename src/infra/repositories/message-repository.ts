@@ -53,6 +53,12 @@ export class MessageRepository {
   deleteBySession(sessionId: string) {
     this.store.delete(getMessagePath(sessionId));
   }
+
+  deleteAll() {
+    for (const filePath of this.store.list("messages")) {
+      this.store.delete(filePath);
+    }
+  }
 }
 
 function parseChatMessage(value: unknown): ChatMessage {

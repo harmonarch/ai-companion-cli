@@ -7,17 +7,26 @@ import { parseSlashCommand } from "../controller/slash-commands.js";
 import type { ChatMessage } from "../types/chat.js";
 import type { SessionSummary } from "../types/session.js";
 import type { ToolConfirmationRequest, ToolExecutionRecord } from "../types/tool.js";
+import type { MemoryEditState, MemoryOverlayMode } from "../app.js";
 
 interface UseSubmitHandlerOptions {
   activeSnapshot: SessionSnapshot | null;
   controller: ChatController | null;
   onExitRequested(): void;
+  pendingResetConfirmation: boolean;
   sessionStore: SessionStore | null;
   setHelpVisible: Dispatch<SetStateAction<boolean>>;
-  setMemoryVisible: Dispatch<SetStateAction<boolean>>;
+  setMemoryDeleteConfirmId: Dispatch<SetStateAction<string | null>>;
+  setMemoryEditState: Dispatch<SetStateAction<MemoryEditState | null>>;
+  setMemoryOverlayMode: Dispatch<SetStateAction<MemoryOverlayMode>>;
+  setMemorySnapshot: Dispatch<SetStateAction<SessionSnapshot | null>>;
+  setMemoryViewId: Dispatch<SetStateAction<string | null>>;
   setInput: Dispatch<SetStateAction<string>>;
   setIsStreaming: Dispatch<SetStateAction<boolean>>;
   setPendingConfirmations: Dispatch<SetStateAction<PendingConfirmation[]>>;
+  setPendingResetConfirmation: Dispatch<SetStateAction<boolean>>;
+  setSelectedMemoryIndex: Dispatch<SetStateAction<number>>;
+  setSelectedMemorySessionIndex: Dispatch<SetStateAction<number>>;
   setSelectedSessionIndex: Dispatch<SetStateAction<number>>;
   setSessionDeleteConfirmId: Dispatch<SetStateAction<string | null>>;
   setSessions: Dispatch<SetStateAction<SessionSummary[]>>;
@@ -30,12 +39,20 @@ export function useSubmitHandler({
   activeSnapshot,
   controller,
   onExitRequested,
+  pendingResetConfirmation,
   sessionStore,
   setHelpVisible,
-  setMemoryVisible,
+  setMemoryDeleteConfirmId,
+  setMemoryEditState,
+  setMemoryOverlayMode,
+  setMemorySnapshot,
+  setMemoryViewId,
   setInput,
   setIsStreaming,
   setPendingConfirmations,
+  setPendingResetConfirmation,
+  setSelectedMemoryIndex,
+  setSelectedMemorySessionIndex,
   setSelectedSessionIndex,
   setSessionDeleteConfirmId,
   setSessions,
@@ -60,15 +77,24 @@ export function useSubmitHandler({
       const command = parseSlashCommand(value);
       if (command) {
         await handleAppCommand({
+          activeSnapshot,
           command,
+          pendingResetConfirmation,
           sessionStore,
           onExitRequested,
           setHelpVisible,
-          setMemoryVisible,
+          setMemoryDeleteConfirmId,
+          setMemoryEditState,
+          setMemoryOverlayMode,
+          setMemorySnapshot,
+          setMemoryViewId,
+          setPendingResetConfirmation,
           setSessionDeleteConfirmId,
           setSnapshot,
           setSessions,
           setSessionsVisible,
+          setSelectedMemoryIndex,
+          setSelectedMemorySessionIndex,
           setSelectedSessionIndex,
           setStatusMessage,
         });
@@ -78,6 +104,7 @@ export function useSubmitHandler({
 
       setInput("");
       setStatusMessage(undefined);
+      setPendingResetConfirmation(false);
       setIsStreaming(true);
 
       try {
@@ -142,12 +169,20 @@ export function useSubmitHandler({
     activeSnapshot,
     controller,
     onExitRequested,
+    pendingResetConfirmation,
     sessionStore,
     setHelpVisible,
-    setMemoryVisible,
+    setMemoryDeleteConfirmId,
+    setMemoryEditState,
+    setMemoryOverlayMode,
+    setMemorySnapshot,
+    setMemoryViewId,
     setInput,
     setIsStreaming,
     setPendingConfirmations,
+    setPendingResetConfirmation,
+    setSelectedMemoryIndex,
+    setSelectedMemorySessionIndex,
     setSelectedSessionIndex,
     setSessionDeleteConfirmId,
     setSessions,

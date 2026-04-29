@@ -19,6 +19,12 @@ export class SessionScratchpadRepository {
   deleteBySession(sessionId: string) {
     this.store.delete(getScratchpadPath(sessionId));
   }
+
+  deleteAll() {
+    for (const filePath of this.store.list("scratchpads")) {
+      this.store.delete(filePath);
+    }
+  }
 }
 
 function parseSessionScratchpad(value: unknown): SessionScratchpad {

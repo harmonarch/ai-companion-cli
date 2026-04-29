@@ -5,20 +5,24 @@ import type { SessionSummary } from "../types/session.js";
 import { sanitizeSingleLineText } from "../utils/sanitize-text.js";
 
 export function SessionList({
+  title = "sessions",
   sessions,
   selectedIndex,
   deleteConfirmSessionId,
+  mode = "manage",
 }: {
+  title?: string;
   sessions: SessionSummary[];
   selectedIndex: number;
   deleteConfirmSessionId: string | null;
+  mode?: "manage" | "select";
 }) {
   return (
     <Box flexDirection="column">
-      <Text>{pc.gray("sessions")}</Text>
+      <Text>{pc.gray(title)}</Text>
       {sessions.map((session, index) => {
         const selected = index === selectedIndex;
-        const confirmingDelete = session.id === deleteConfirmSessionId;
+        const confirmingDelete = mode === "manage" && session.id === deleteConfirmSessionId;
         const safeTitle = sanitizeSingleLineText(session.title, 80);
         const safeProvider = sanitizeSingleLineText(session.provider, 40);
         const safeModel = sanitizeSingleLineText(session.model, 40);
@@ -27,11 +31,13 @@ export function SessionList({
           <Text key={session.id}>
             {selected ? pc.cyan(">") : " "} {selected ? pc.whiteBright(safeTitle) : safeTitle}{" "}
             {pc.gray(`· ${session.messageCount} msgs · ${safeProvider}/${safeModel}`)}
-            {confirmingDelete ? pc.yellow(" · Enter 删除 / Esc 取消") : ""}
+            {confirmingDelete ? pc.yellow(" · Enter delete / Esc cancel") : ""}
           </Text>
         );
       })}
-      <Text>{pc.gray(deleteConfirmSessionId ? "Enter 删除 / Esc 取消" : "↑ ↓ move · enter switch · d delete · esc close")}</Text>
+      <Text>{pc.gray(mode === "select"
+        ? "↑ ↓ move · Enter open · Esc close"
+        : deleteConfirmSessionId ? "Enter delete / Esc cancel" : "↑ ↓ move · enter switch · d delete · esc close")}</Text>
     </Box>
   );
 }

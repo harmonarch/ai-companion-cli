@@ -5,6 +5,7 @@ export type MemoryCandidateStatus = "pending" | "rejected" | "promoted" | "needs
 export type MemoryRecordStatus = "pending" | "active" | "superseded" | "archived" | "deleted";
 export type MemoryAuditAction = "create" | "reinforce" | "update" | "delete" | "reject" | "confirm" | "supersede";
 export type MemoryAuditTargetType = "candidate" | "memory";
+export type MemoryEvidenceKind = "message" | "assistant" | "run" | "tool";
 
 export interface MemoryScope {
   userId: string;
@@ -42,6 +43,7 @@ export interface MemoryCandidate extends MemoryScope {
 
 export interface MemoryRecord extends MemoryScope {
   id: string;
+  sessionId?: string;
   kind: MemoryKind;
   type: MemoryType;
   subject: string;
@@ -57,6 +59,30 @@ export interface MemoryRecord extends MemoryScope {
   expiresAt?: string;
   deletedAt?: string;
   supersededBy?: string;
+}
+
+export interface MemoryEvidenceMessageSummary {
+  id: string;
+  role: "user" | "assistant" | "system" | "tool";
+  preview: string;
+  createdAt: string;
+}
+
+export interface MemoryEvidenceRecord {
+  rawRef: string;
+  kind: MemoryEvidenceKind;
+  refId: string;
+  sessionId?: string;
+  sessionTitle?: string;
+  runId?: string;
+  toolName?: string;
+  message?: MemoryEvidenceMessageSummary;
+  unresolvedReason?: string;
+}
+
+export interface MemoryDetailRecord {
+  memory: MemoryRecord;
+  evidence: MemoryEvidenceRecord[];
 }
 
 export interface MemoryAuditEvent extends MemoryScope {

@@ -227,7 +227,7 @@ function getPlaceholder(disabledReason?: "streaming" | "confirm" | "sessions" | 
     case "sessions":
       return "Select a session above";
     case "memory":
-      return "Memory is open. Press Esc to close";
+      return "Use the memory panel above. Press Esc to close";
     case "help":
       return "Help is open. Press Esc to close";
     default:

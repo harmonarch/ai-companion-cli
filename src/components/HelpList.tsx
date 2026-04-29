@@ -6,8 +6,8 @@ const helpItems = [
   ["/new", "create a new session"],
   ["/sessions", "open the session list"],
   ["/switch <n|id>", "switch to a session"],
-  ["/memory", "open the memory panel"],
-  ["/memory delete <id>", "delete a memory record"],
+  ["/memory", "choose a session, then view that session's memories"],
+  ["/reset", "stage a full reset of chat history and memory"],
   ["/help", "open this help panel"],
   ["/exit", "exit the app and hide the current screen"],
 ] as const;
@@ -22,6 +22,7 @@ export function HelpList() {
           {pc.gray(description)}
         </Text>
       ))}
+      <Text>{pc.gray("memory: pick a session first · then Enter view · e edit · d delete · Esc back")}</Text>
       <Text>{pc.gray("esc close")}</Text>
     </Box>
   );
