@@ -1,96 +1,51 @@
 import type { Dispatch, SetStateAction } from "react";
-import type { MemoryEditState, MemoryOverlayMode } from "../app.js";
 import type { SessionSnapshot, SessionStore } from "../controller/session-store.js";
 import type { SlashCommand } from "../controller/slash-commands.js";
 import type { SessionSummary } from "../types/session.js";
+import type { UiAction } from "./ui-state.js";
 
 interface HandleAppCommandOptions {
   activeSnapshot: SessionSnapshot | null;
   command: SlashCommand;
+  dispatch: Dispatch<UiAction>;
   pendingResetConfirmation: boolean;
   sessionStore: SessionStore;
   onExitRequested(): void;
-  setHelpVisible: Dispatch<SetStateAction<boolean>>;
-  setMemoryDeleteConfirmId: Dispatch<SetStateAction<string | null>>;
-  setMemoryEditState: Dispatch<SetStateAction<MemoryEditState | null>>;
-  setMemoryOverlayMode: Dispatch<SetStateAction<MemoryOverlayMode>>;
-  setMemorySnapshot: Dispatch<SetStateAction<SessionSnapshot | null>>;
-  setMemoryViewId: Dispatch<SetStateAction<string | null>>;
-  setPendingResetConfirmation: Dispatch<SetStateAction<boolean>>;
-  setSelectedMemoryIndex: Dispatch<SetStateAction<number>>;
-  setSessionDeleteConfirmId: Dispatch<SetStateAction<string | null>>;
   setSnapshot: Dispatch<SetStateAction<SessionSnapshot | null>>;
   setSessions: Dispatch<SetStateAction<SessionSummary[]>>;
-  setSessionsVisible: Dispatch<SetStateAction<boolean>>;
-  setSelectedSessionIndex: Dispatch<SetStateAction<number>>;
-  setStatusMessage: Dispatch<SetStateAction<string | undefined>>;
 }
 
 export async function handleAppCommand({
   activeSnapshot,
   command,
+  dispatch,
   pendingResetConfirmation,
   sessionStore,
   onExitRequested,
-  setHelpVisible,
-  setMemoryDeleteConfirmId,
-  setMemoryEditState,
-  setMemoryOverlayMode,
-  setMemorySnapshot,
-  setMemoryViewId,
-  setPendingResetConfirmation,
-  setSelectedMemoryIndex,
-  setSessionDeleteConfirmId,
   setSnapshot,
   setSessions,
-  setSessionsVisible,
-  setSelectedSessionIndex,
-  setStatusMessage,
 }: HandleAppCommandOptions) {
   switch (command.type) {
     case "new": {
       const nextSnapshot = sessionStore.createSession();
-      setPendingResetConfirmation(false);
-      setHelpVisible(false);
-      setSessionsVisible(false);
-      setMemoryDeleteConfirmId(null);
-      setMemoryEditState(null);
-      setMemorySnapshot(null);
-      setMemoryViewId(null);
-      setMemoryOverlayMode("hidden");
-      setSessionDeleteConfirmId(null);
+      dispatch({ type: "reset-confirmation/set", value: false });
+      dispatch({ type: "overlay/close" });
       setSnapshot(nextSnapshot);
       setSessions(sessionStore.listSessions());
-      setStatusMessage("Created a new session.");
+      dispatch({ type: "status/set", value: "Created a new session." });
       return;
     }
     case "sessions": {
-      setPendingResetConfirmation(false);
-      setHelpVisible(false);
-      setMemoryDeleteConfirmId(null);
-      setMemoryEditState(null);
-      setMemorySnapshot(null);
-      setMemoryViewId(null);
-      setMemoryOverlayMode("hidden");
-      setSessionDeleteConfirmId(null);
+      dispatch({ type: "reset-confirmation/set", value: false });
+      dispatch({ type: "overlay/sessions/open", selectedIndex: 0 });
       setSessions(sessionStore.listSessions());
-      setSelectedSessionIndex(0);
-      setSessionsVisible(true);
       return;
     }
     case "switch": {
       if (!command.target) {
-        setPendingResetConfirmation(false);
-        setHelpVisible(false);
-        setMemoryDeleteConfirmId(null);
-        setMemoryEditState(null);
-        setMemorySnapshot(null);
-        setMemoryViewId(null);
-        setMemoryOverlayMode("hidden");
-        setSessionDeleteConfirmId(null);
+        dispatch({ type: "reset-confirmation/set", value: false });
+        dispatch({ type: "overlay/sessions/open", selectedIndex: 0 });
         setSessions(sessionStore.listSessions());
-        setSelectedSessionIndex(0);
-        setSessionsVisible(true);
         return;
       }
 
@@ -102,25 +57,18 @@ export async function handleAppCommand({
         : currentSessions.find((session) => session.id.startsWith(targetInput));
 
       if (!target) {
-        setStatusMessage(`Session not found: ${targetInput}`);
+        dispatch({ type: "status/set", value: `Session not found: ${targetInput}` });
         return;
       }
 
       try {
-        setPendingResetConfirmation(false);
-        setHelpVisible(false);
-        setSessionsVisible(false);
-        setMemoryDeleteConfirmId(null);
-        setMemoryEditState(null);
-        setMemorySnapshot(null);
-        setMemoryViewId(null);
-        setMemoryOverlayMode("hidden");
-        setSessionDeleteConfirmId(null);
+        dispatch({ type: "reset-confirmation/set", value: false });
+        dispatch({ type: "overlay/close" });
         setSnapshot(sessionStore.loadSession(target.id));
-        setStatusMessage(`Switched to ${target.title}.`);
+        dispatch({ type: "status/set", value: `Switched to ${target.title}.` });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        setStatusMessage(`Error: ${message}`);
+        dispatch({ type: "status/set", value: `Error: ${message}` });
       }
       return;
     }
@@ -128,87 +76,56 @@ export async function handleAppCommand({
       if (command.target) {
         const normalizedTarget = command.target.trim().toLowerCase();
         if (normalizedTarget === "delete" || normalizedTarget.startsWith("delete ")) {
-          setStatusMessage("Use /memory, select a record, then press d to delete.");
+          dispatch({ type: "status/set", value: "Use /memory, select a record, then press d to delete." });
           return;
         }
       }
 
       const initialMemorySnapshot = activeSnapshot ?? sessionStore.ensureSession();
-      setPendingResetConfirmation(false);
-      setHelpVisible(false);
-      setSessionsVisible(false);
-      setSessionDeleteConfirmId(null);
-      setMemoryDeleteConfirmId(null);
-      setMemoryEditState(null);
-      setMemorySnapshot(initialMemorySnapshot);
-      setMemoryViewId(null);
+      dispatch({ type: "reset-confirmation/set", value: false });
+      dispatch({ type: "overlay/memory/open", snapshot: initialMemorySnapshot, selectedIndex: 0 });
       setSessions(sessionStore.listSessions());
-      setSelectedMemoryIndex(0);
-      setMemoryOverlayMode("memory_list");
-      setStatusMessage("Memory opened.");
+      dispatch({ type: "status/set", value: "Memory opened." });
       return;
     }
     case "reset": {
       const action = command.target?.trim().toLowerCase();
 
       if (!action) {
-        setPendingResetConfirmation(true);
-        setHelpVisible(false);
-        setSessionsVisible(false);
-        setSessionDeleteConfirmId(null);
-        setMemoryDeleteConfirmId(null);
-        setMemoryEditState(null);
-        setMemorySnapshot(null);
-        setMemoryViewId(null);
-        setMemoryOverlayMode("hidden");
-        setStatusMessage("Reset staged. Run /reset confirm to clear all chat history and memory, or /reset cancel to abort.");
+        dispatch({ type: "reset-confirmation/set", value: true });
+        dispatch({ type: "overlay/close" });
+        dispatch({ type: "status/set", value: "Reset staged. Run /reset confirm to clear all chat history and memory, or /reset cancel to abort." });
         return;
       }
 
       if (action === "cancel") {
-        setPendingResetConfirmation(false);
-        setStatusMessage("Reset canceled.");
+        dispatch({ type: "reset-confirmation/set", value: false });
+        dispatch({ type: "status/set", value: "Reset canceled." });
         return;
       }
 
       if (action !== "confirm") {
-        setStatusMessage("Usage: /reset, /reset confirm, /reset cancel");
+        dispatch({ type: "status/set", value: "Usage: /reset, /reset confirm, /reset cancel" });
         return;
       }
 
       if (!pendingResetConfirmation) {
-        setStatusMessage("Run /reset first, then /reset confirm.");
+        dispatch({ type: "status/set", value: "Run /reset first, then /reset confirm." });
         return;
       }
 
-      setPendingResetConfirmation(false);
+      dispatch({ type: "reset-confirmation/set", value: false });
       const nextSnapshot = sessionStore.resetAll();
-      setHelpVisible(false);
-      setSessionsVisible(false);
-      setSessionDeleteConfirmId(null);
-      setMemoryDeleteConfirmId(null);
-      setMemoryEditState(null);
-      setMemorySnapshot(null);
-      setMemoryViewId(null);
-      setMemoryOverlayMode("hidden");
-      setSelectedSessionIndex(0);
-      setSelectedMemoryIndex(0);
+      dispatch({ type: "overlay/close" });
       setSnapshot(nextSnapshot);
       setSessions(sessionStore.listSessions());
-      setStatusMessage("All chat history and memory have been reset.");
+      dispatch({ type: "status/set", value: "All chat history and memory have been reset." });
       return;
     }
     case "help": {
-      setPendingResetConfirmation(false);
-      setMemoryDeleteConfirmId(null);
-      setMemoryEditState(null);
-      setMemorySnapshot(null);
-      setMemoryViewId(null);
-      setMemoryOverlayMode("hidden");
-      setSessionDeleteConfirmId(null);
-      setSessionsVisible(false);
-      setHelpVisible(true);
-      setStatusMessage("Help opened. Press Esc to close.");
+      dispatch({ type: "reset-confirmation/set", value: false });
+      dispatch({ type: "overlay/help/open" });
+      dispatch({ type: "status/set", value: "Help opened. Press Esc to close." });
       return;
     }
     case "exit": {
@@ -216,19 +133,10 @@ export async function handleAppCommand({
       return;
     }
     case "unknown": {
-      setStatusMessage(`Unknown command: /${command.name}`);
+      dispatch({ type: "status/set", value: `Unknown command: /${command.name}` });
       return;
     }
     default:
       return;
   }
-}
-
-function findSessionIndex(sessions: SessionSummary[], sessionId: string | undefined) {
-  if (!sessionId) {
-    return 0;
-  }
-
-  const index = sessions.findIndex((session) => session.id === sessionId);
-  return index === -1 ? 0 : index;
 }

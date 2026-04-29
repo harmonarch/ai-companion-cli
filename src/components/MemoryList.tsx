@@ -1,7 +1,7 @@
 import React from "react";
 import { Box, Text } from "ink";
 import pc from "picocolors";
-import type { MemoryEditState } from "../app.js";
+import type { MemoryEditState } from "../app/ui-state.js";
 import type { MemoryDetailRecord } from "../types/memory.js";
 import { sanitizeSingleLineText } from "../utils/sanitize-text.js";
 

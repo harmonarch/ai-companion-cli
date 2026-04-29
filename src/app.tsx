@@ -1,9 +1,20 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useReducer, useState } from "react";
 import { Box, Text, useApp } from "ink";
 import pc from "picocolors";
 import { createAppServices } from "./app/create-app-services.js";
 import { resolveInitialSession } from "./app/resolve-initial-session.js";
-import { useAppInput, type PendingConfirmation } from "./app/use-app-input.js";
+import {
+  getActiveConfirmation,
+  getMemoryOverlay,
+  getPromptInputDisabledReason,
+  getSessionsOverlay,
+  getStatusMode,
+  initialUiState,
+  isPanelVisible,
+  isPromptDisabled,
+  uiReducer,
+} from "./app/ui-state.js";
+import { useAppInput } from "./app/use-app-input.js";
 import { useSubmitHandler } from "./app/use-submit-handler.js";
 import { ChatList } from "./components/ChatList.js";
 import { HelpList } from "./components/HelpList.js";
@@ -23,21 +34,6 @@ interface AppServices {
   error: string | null;
 }
 
-export type MemoryOverlayMode = "hidden" | "memory_list";
-
-export interface MemoryEditState {
-  memoryId: string;
-  activeField: "subject" | "value";
-  subject: {
-    value: string;
-    cursorIndex: number;
-  };
-  value: {
-    value: string;
-    cursorIndex: number;
-  };
-}
-
 export function App({
   initialSessionId,
   onExitRequested,
@@ -51,24 +47,9 @@ export function App({
     controller: null,
     error: null,
   });
-
+  const [uiState, dispatch] = useReducer(uiReducer, initialUiState);
   const [snapshot, setSnapshot] = useState<SessionSnapshot | null>(null);
-  const [memorySnapshot, setMemorySnapshot] = useState<SessionSnapshot | null>(null);
-  const [input, setInput] = useState("");
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<string>();
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
-  const [helpVisible, setHelpVisible] = useState(false);
-  const [memoryOverlayMode, setMemoryOverlayMode] = useState<MemoryOverlayMode>("hidden");
-  const [sessionsVisible, setSessionsVisible] = useState(false);
-  const [selectedSessionIndex, setSelectedSessionIndex] = useState(0);
-  const [selectedMemoryIndex, setSelectedMemoryIndex] = useState(0);
-  const [sessionDeleteConfirmId, setSessionDeleteConfirmId] = useState<string | null>(null);
-  const [memoryDeleteConfirmId, setMemoryDeleteConfirmId] = useState<string | null>(null);
-  const [memoryViewId, setMemoryViewId] = useState<string | null>(null);
-  const [memoryEditState, setMemoryEditState] = useState<MemoryEditState | null>(null);
-  const [pendingConfirmations, setPendingConfirmations] = useState<PendingConfirmation[]>([]);
-  const [pendingResetConfirmation, setPendingResetConfirmation] = useState(false);
 
   useEffect(() => {
     try {
@@ -108,65 +89,33 @@ export function App({
       setSessions(resolution.sessions);
     }
 
-    setStatusMessage(resolution.statusMessage);
+    dispatch({ type: "status/set", value: resolution.statusMessage });
   }, [initialSessionId, services]);
 
-  const activeConfirmation = pendingConfirmations[0] ?? null;
+  const activeConfirmation = getActiveConfirmation(uiState);
+  const memoryOverlay = getMemoryOverlay(uiState);
+  const sessionsOverlay = getSessionsOverlay(uiState);
 
   useAppInput({
     activeConfirmation,
     activeSnapshot: snapshot,
-    helpVisible,
-    memoryDeleteConfirmId,
-    memoryEditState,
-    memoryOverlayMode,
-    memorySnapshot,
-    memoryViewId,
-    sessionDeleteConfirmId,
-    sessionsVisible,
-    sessions,
-    selectedMemoryIndex,
-    selectedSessionIndex,
+    dispatch,
     sessionStore: services.sessionStore,
-    setHelpVisible,
-    setMemoryDeleteConfirmId,
-    setMemoryEditState,
-    setMemoryOverlayMode,
-    setMemorySnapshot,
-    setMemoryViewId,
-    setPendingConfirmations,
-    setSessionDeleteConfirmId,
+    sessions,
     setSessions,
-    setStatusMessage,
-    setSessionsVisible,
-    setSelectedMemoryIndex,
-    setSelectedSessionIndex,
     setSnapshot,
+    uiState,
   });
 
   const handleSubmit = useSubmitHandler({
     activeSnapshot: snapshot,
     controller: services.controller,
+    dispatch,
     onExitRequested: onExitRequested ?? exit,
-    pendingResetConfirmation,
+    pendingResetConfirmation: uiState.pendingResetConfirmation,
     sessionStore: services.sessionStore,
-    setHelpVisible,
-    setMemoryDeleteConfirmId,
-    setMemoryEditState,
-    setMemoryOverlayMode,
-    setMemorySnapshot,
-    setMemoryViewId,
-    setInput,
-    setIsStreaming,
-    setPendingConfirmations,
-    setPendingResetConfirmation,
-    setSelectedMemoryIndex,
-    setSelectedSessionIndex,
-    setSessionDeleteConfirmId,
     setSessions,
-    setSessionsVisible,
     setSnapshot,
-    setStatusMessage,
   });
 
   if (services.error) {
@@ -174,80 +123,71 @@ export function App({
   }
 
   if (!services.controller || !services.sessionStore) {
-    return <Text>{statusMessage ? sanitizeSingleLineText(statusMessage, 240) : "Loading..."}</Text>;
+    return <Text>{uiState.statusMessage ? sanitizeSingleLineText(uiState.statusMessage, 240) : "Loading..."}</Text>;
   }
 
   if (!snapshot) {
-    return <Text>{statusMessage ? sanitizeSingleLineText(statusMessage, 240) : "Loading..."}</Text>;
+    return <Text>{uiState.statusMessage ? sanitizeSingleLineText(uiState.statusMessage, 240) : "Loading..."}</Text>;
   }
 
   const activeSnapshot = snapshot;
-  let overlayMode: "confirm" | "sessions" | "memory" | "help" | null = null;
-  if (activeConfirmation) {
-    overlayMode = "confirm";
-  } else if (sessionsVisible) {
-    overlayMode = "sessions";
-  } else if (memoryOverlayMode !== "hidden") {
-    overlayMode = "memory";
-  } else if (helpVisible) {
-    overlayMode = "help";
-  }
-  const mode = overlayMode ?? (isStreaming ? "streaming" : "ready");
-  const inputDisabledReason = overlayMode ?? (isStreaming ? "streaming" : undefined);
-  const isPanelVisible = helpVisible || memoryOverlayMode !== "hidden" || sessionsVisible;
+  const mode = getStatusMode(uiState);
+  const inputDisabledReason = getPromptInputDisabledReason(uiState);
 
   return (
     <Box flexDirection="column">
-      <StatusBar session={activeSnapshot.session} mode={mode} statusMessage={statusMessage} />
+      <StatusBar session={activeSnapshot.session} mode={mode} statusMessage={uiState.statusMessage} />
       <Box marginTop={1} flexDirection="column">
         {activeConfirmation ? (
           <Box flexDirection="column" marginBottom={1}>
             <Text>{pc.yellow("confirm")} {pc.white(sanitizeSingleLineText(activeConfirmation.request.toolName, 120))}</Text>
             <Text>{pc.gray(sanitizeSingleLineText(activeConfirmation.request.summary, 240))}</Text>
             <Text>{pc.gray("press y to approve · n or esc to deny")}</Text>
-            {pendingConfirmations.length > 1 ? (
-              <Text>{pc.gray(`${pendingConfirmations.length - 1} more queued`)}</Text>
+            {uiState.pendingConfirmations.length > 1 ? (
+              <Text>{pc.gray(`${uiState.pendingConfirmations.length - 1} more queued`)}</Text>
             ) : null}
           </Box>
         ) : null}
-        {helpVisible ? (
+        {uiState.overlay.kind === "help" ? (
           <Box marginBottom={1}>
             <HelpList />
           </Box>
         ) : null}
-        {memoryOverlayMode === "memory_list" ? (
+        {memoryOverlay ? (
           <Box marginBottom={1}>
             <MemoryList
-              memoryDetails={memorySnapshot?.memoryDetails ?? []}
-              selectedIndex={selectedMemoryIndex}
-              deleteConfirmMemoryId={memoryDeleteConfirmId}
-              viewMemoryId={memoryViewId}
-              editState={memoryEditState}
+              memoryDetails={memoryOverlay.sessionSnapshot?.memoryDetails ?? []}
+              selectedIndex={memoryOverlay.selectedIndex}
+              deleteConfirmMemoryId={memoryOverlay.deleteConfirmMemoryId}
+              viewMemoryId={memoryOverlay.viewMemoryId}
+              editState={memoryOverlay.editState}
             />
           </Box>
         ) : null}
-        {sessionsVisible ? (
+        {sessionsOverlay ? (
           <Box marginBottom={1}>
             <SessionList
               sessions={sessions}
-              selectedIndex={selectedSessionIndex}
-              deleteConfirmSessionId={sessionDeleteConfirmId}
+              selectedIndex={sessionsOverlay.selectedIndex}
+              deleteConfirmSessionId={sessionsOverlay.deleteConfirmSessionId}
             />
           </Box>
         ) : null}
-        {isPanelVisible ? null : (
+        {isPanelVisible(uiState) ? null : (
           <ChatList messages={activeSnapshot.messages} toolExecutions={activeSnapshot.toolExecutions} />
         )}
       </Box>
       <Box marginTop={1} flexDirection="column">
         <HorizontalDivider />
         <PromptInput
-          value={input}
-          onChange={setInput}
+          value={uiState.input}
+          onChange={(value) => {
+            dispatch({ type: "input/set", value });
+          }}
           onSubmit={(next) => {
             void handleSubmit(next);
           }}
-          disabled={isStreaming || helpVisible || memoryOverlayMode !== "hidden" || sessionsVisible || Boolean(activeConfirmation)}
+          disabled={isPromptDisabled(uiState)}
           disabledReason={inputDisabledReason}
         />
         <HorizontalDivider />

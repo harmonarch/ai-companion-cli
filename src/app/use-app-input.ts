@@ -1,111 +1,55 @@
 import { useInput, type Key } from "ink";
 import type { Dispatch, SetStateAction } from "react";
-import type { MemoryEditState, MemoryOverlayMode } from "../app.js";
 import type { SessionSnapshot, SessionStore } from "../controller/session-store.js";
 import type { MemoryRecord } from "../types/memory.js";
 import type { SessionSummary } from "../types/session.js";
-import type { ToolConfirmationRequest } from "../types/tool.js";
-
-export interface PendingConfirmation {
-  request: ToolConfirmationRequest;
-  resolve(value: boolean): void;
-}
+import type { UiAction, UiState, MemoryEditState, PendingConfirmation } from "./ui-state.js";
 
 interface UseAppInputOptions {
   activeConfirmation: PendingConfirmation | null;
   activeSnapshot: SessionSnapshot | null;
-  helpVisible: boolean;
-  memoryDeleteConfirmId: string | null;
-  memoryEditState: MemoryEditState | null;
-  memoryOverlayMode: MemoryOverlayMode;
-  memorySnapshot: SessionSnapshot | null;
-  memoryViewId: string | null;
-  sessionDeleteConfirmId: string | null;
-  sessionsVisible: boolean;
-  sessions: SessionSummary[];
-  selectedMemoryIndex: number;
-  selectedSessionIndex: number;
+  dispatch: Dispatch<UiAction>;
   sessionStore: SessionStore | null;
-  setHelpVisible: Dispatch<SetStateAction<boolean>>;
-  setMemoryDeleteConfirmId: Dispatch<SetStateAction<string | null>>;
-  setMemoryEditState: Dispatch<SetStateAction<MemoryEditState | null>>;
-  setMemoryOverlayMode: Dispatch<SetStateAction<MemoryOverlayMode>>;
-  setMemorySnapshot: Dispatch<SetStateAction<SessionSnapshot | null>>;
-  setMemoryViewId: Dispatch<SetStateAction<string | null>>;
-  setPendingConfirmations: Dispatch<SetStateAction<PendingConfirmation[]>>;
-  setSessionDeleteConfirmId: Dispatch<SetStateAction<string | null>>;
+  sessions: SessionSummary[];
   setSessions: Dispatch<SetStateAction<SessionSummary[]>>;
-  setStatusMessage: Dispatch<SetStateAction<string | undefined>>;
-  setSessionsVisible: Dispatch<SetStateAction<boolean>>;
-  setSelectedMemoryIndex: Dispatch<SetStateAction<number>>;
-  setSelectedSessionIndex: Dispatch<SetStateAction<number>>;
   setSnapshot: Dispatch<SetStateAction<SessionSnapshot | null>>;
+  uiState: UiState;
 }
 
 export function useAppInput({
   activeConfirmation,
   activeSnapshot,
-  helpVisible,
-  memoryDeleteConfirmId,
-  memoryEditState,
-  memoryOverlayMode,
-  memorySnapshot,
-  memoryViewId,
-  sessionDeleteConfirmId,
-  sessionsVisible,
-  sessions,
-  selectedMemoryIndex,
-  selectedSessionIndex,
+  dispatch,
   sessionStore,
-  setHelpVisible,
-  setMemoryDeleteConfirmId,
-  setMemoryEditState,
-  setMemoryOverlayMode,
-  setMemorySnapshot,
-  setMemoryViewId,
-  setPendingConfirmations,
-  setSessionDeleteConfirmId,
+  sessions,
   setSessions,
-  setStatusMessage,
-  setSessionsVisible,
-  setSelectedMemoryIndex,
-  setSelectedSessionIndex,
   setSnapshot,
+  uiState,
 }: UseAppInputOptions) {
   useInput((inputChar, key) => {
     if (activeConfirmation) {
-      handleConfirmationInput(inputChar, key, activeConfirmation, setPendingConfirmations, setStatusMessage);
+      handleConfirmationInput(inputChar, key, activeConfirmation, dispatch);
       return;
     }
 
-    if (helpVisible) {
-      handleHelpInput(key, setHelpVisible);
+    if (uiState.overlay.kind === "help") {
+      handleHelpInput(key, dispatch);
       return;
     }
 
-    if (memoryOverlayMode !== "hidden") {
+    if (uiState.overlay.kind === "memory") {
       handleMemoryInput({
+        dispatch,
         inputChar,
         key,
-        memoryDeleteConfirmId,
-        memoryEditState,
-        memorySnapshot,
-        memoryViewId,
-        selectedMemoryIndex,
+        memoryOverlay: uiState.overlay,
         sessionStore,
-        setMemoryDeleteConfirmId,
-        setMemoryEditState,
-        setMemoryOverlayMode,
-        setMemorySnapshot,
-        setMemoryViewId,
-        setSelectedMemoryIndex,
         setSnapshot,
-        setStatusMessage,
       });
       return;
     }
 
-    if (!sessionsVisible) {
+    if (uiState.overlay.kind !== "sessions") {
       return;
     }
 
@@ -113,16 +57,12 @@ export function useAppInput({
       inputChar,
       key,
       activeSnapshot,
-      sessionDeleteConfirmId,
+      dispatch,
       sessions,
-      selectedSessionIndex,
+      sessionsOverlay: uiState.overlay,
       sessionStore,
-      setSessionDeleteConfirmId,
       setSessions,
-      setSessionsVisible,
-      setSelectedSessionIndex,
       setSnapshot,
-      setStatusMessage,
     });
   });
 }
@@ -131,184 +71,167 @@ function handleConfirmationInput(
   inputChar: string,
   key: Key,
   activeConfirmation: PendingConfirmation,
-  setPendingConfirmations: UseAppInputOptions["setPendingConfirmations"],
-  setStatusMessage: UseAppInputOptions["setStatusMessage"],
+  dispatch: Dispatch<UiAction>,
 ) {
   if (inputChar.toLowerCase() === "y") {
     activeConfirmation.resolve(true);
-    setPendingConfirmations((current) => current.slice(1));
-    setStatusMessage("Tool execution approved.");
+    dispatch({ type: "confirmations/shift" });
+    dispatch({ type: "status/set", value: "Tool execution approved." });
     return;
   }
 
   if (inputChar.toLowerCase() === "n" || key.escape) {
     activeConfirmation.resolve(false);
-    setPendingConfirmations((current) => current.slice(1));
-    setStatusMessage("Tool execution denied.");
+    dispatch({ type: "confirmations/shift" });
+    dispatch({ type: "status/set", value: "Tool execution denied." });
   }
 }
 
 function handleHelpInput(
   key: Key,
-  setHelpVisible: UseAppInputOptions["setHelpVisible"],
+  dispatch: Dispatch<UiAction>,
 ) {
   if (key.escape) {
-    setHelpVisible(false);
+    dispatch({ type: "overlay/close" });
   }
 }
 
 function handleMemoryInput({
+  dispatch,
   inputChar,
   key,
-  memoryDeleteConfirmId,
-  memoryEditState,
-  memorySnapshot,
-  memoryViewId,
-  selectedMemoryIndex,
+  memoryOverlay,
   sessionStore,
-  setMemoryDeleteConfirmId,
-  setMemoryEditState,
-  setMemoryOverlayMode,
-  setMemorySnapshot,
-  setMemoryViewId,
-  setSelectedMemoryIndex,
   setSnapshot,
-  setStatusMessage,
 }: {
+  dispatch: Dispatch<UiAction>;
   inputChar: string;
   key: Key;
-  memoryDeleteConfirmId: string | null;
-  memoryEditState: MemoryEditState | null;
-  memorySnapshot: SessionSnapshot | null;
-  memoryViewId: string | null;
-  selectedMemoryIndex: number;
+  memoryOverlay: Extract<UiState["overlay"], { kind: "memory" }>;
   sessionStore: SessionStore | null;
-  setMemoryDeleteConfirmId: UseAppInputOptions["setMemoryDeleteConfirmId"];
-  setMemoryEditState: UseAppInputOptions["setMemoryEditState"];
-  setMemoryOverlayMode: UseAppInputOptions["setMemoryOverlayMode"];
-  setMemorySnapshot: UseAppInputOptions["setMemorySnapshot"];
-  setMemoryViewId: UseAppInputOptions["setMemoryViewId"];
-  setSelectedMemoryIndex: UseAppInputOptions["setSelectedMemoryIndex"];
-  setSnapshot: UseAppInputOptions["setSnapshot"];
-  setStatusMessage: UseAppInputOptions["setStatusMessage"];
+  setSnapshot: Dispatch<SetStateAction<SessionSnapshot | null>>;
 }) {
-
-  const memories = memorySnapshot?.memories ?? [];
-  const selected = memories[selectedMemoryIndex];
+  const memories = memoryOverlay.sessionSnapshot?.memories ?? [];
+  const selected = memories[memoryOverlay.selectedIndex];
+  const memoryEditState = memoryOverlay.editState;
 
   if (memoryEditState && selected) {
     if (key.escape) {
-      setMemoryEditState(null);
-      setStatusMessage("Canceled memory edit.");
+      dispatch({ type: "overlay/memory/edit", value: null });
+      dispatch({ type: "status/set", value: "Canceled memory edit." });
       return;
     }
 
     if (key.tab) {
-      setMemoryEditState((current) => current
-        ? { ...current, activeField: current.activeField === "subject" ? "value" : "subject" }
-        : current);
+      dispatch({
+        type: "overlay/memory/edit",
+        value: (current) => current
+          ? { ...current, activeField: current.activeField === "subject" ? "value" : "subject" }
+          : current,
+      });
       return;
     }
 
-    if (key.return && sessionStore && memorySnapshot) {
+    if (key.return && sessionStore && memoryOverlay.sessionSnapshot) {
       try {
         sessionStore.updateMemory(memoryEditState.memoryId, {
           subject: memoryEditState.subject.value,
           value: memoryEditState.value.value,
         });
-        const nextSnapshot = sessionStore.loadSession(memorySnapshot.session.id);
+        const nextSnapshot = sessionStore.loadSession(memoryOverlay.sessionSnapshot.session.id);
         setSnapshot((current) => current?.session.id === nextSnapshot.session.id ? nextSnapshot : current);
-        setMemorySnapshot(nextSnapshot);
-        setMemoryEditState(null);
-        setMemoryViewId(memoryEditState.memoryId);
-        setStatusMessage("Memory updated.");
+        dispatch({ type: "overlay/memory/snapshot", snapshot: nextSnapshot });
+        dispatch({ type: "overlay/memory/edit", value: null });
+        dispatch({ type: "overlay/memory/view", memoryId: memoryEditState.memoryId });
+        dispatch({ type: "status/set", value: "Memory updated." });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        setStatusMessage(`Error: ${message}`);
+        dispatch({ type: "status/set", value: `Error: ${message}` });
       }
       return;
     }
 
-    if (applyTextEditKey(key, inputChar, setMemoryEditState)) {
+    if (applyTextEditKey(key, inputChar, dispatch)) {
       return;
     }
 
     return;
   }
 
-  if (!selected || !sessionStore || !memorySnapshot) {
+  if (!selected || !sessionStore || !memoryOverlay.sessionSnapshot) {
     if (key.escape) {
-      setMemoryDeleteConfirmId(null);
-      setMemoryEditState(null);
-      setMemoryViewId(null);
-      setMemorySnapshot(null);
-      setMemoryOverlayMode("hidden");
+      dispatch({ type: "overlay/close" });
     }
     return;
   }
 
-  if (memoryDeleteConfirmId) {
+  if (memoryOverlay.deleteConfirmMemoryId) {
     if (key.escape) {
-      setMemoryDeleteConfirmId(null);
+      dispatch({ type: "overlay/memory/delete-confirm", memoryId: null });
       return;
     }
 
-    if (!key.return || selected.id !== memoryDeleteConfirmId) {
+    if (!key.return || selected.id !== memoryOverlay.deleteConfirmMemoryId) {
       return;
     }
 
     try {
-      const deletedIndex = selectedMemoryIndex;
+      const deletedIndex = memoryOverlay.selectedIndex;
       sessionStore.deleteMemory(selected.id);
-      const nextSnapshot = sessionStore.loadSession(memorySnapshot.session.id);
+      const nextSnapshot = sessionStore.loadSession(memoryOverlay.sessionSnapshot.session.id);
       setSnapshot((current) => current?.session.id === nextSnapshot.session.id ? nextSnapshot : current);
-      setMemorySnapshot(nextSnapshot);
-      setSelectedMemoryIndex(clampListIndex(deletedIndex, nextSnapshot.memories.length));
-      setMemoryDeleteConfirmId(null);
-      setMemoryViewId((current) => current === selected.id ? null : current);
-      setMemoryEditState((current) => current?.memoryId === selected.id ? null : current);
-      setStatusMessage(`Deleted memory ${selected.id}.`);
+      dispatch({ type: "overlay/memory/snapshot", snapshot: nextSnapshot });
+      dispatch({ type: "overlay/memory/select", selectedIndex: clampListIndex(deletedIndex, nextSnapshot.memories.length) });
+      dispatch({ type: "overlay/memory/delete-confirm", memoryId: null });
+      dispatch({ type: "overlay/memory/view", memoryId: memoryOverlay.viewMemoryId === selected.id ? null : memoryOverlay.viewMemoryId });
+      dispatch({
+        type: "overlay/memory/edit",
+        value: (current) => current?.memoryId === selected.id ? null : current,
+      });
+      dispatch({ type: "status/set", value: `Deleted memory ${selected.id}.` });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      setMemoryDeleteConfirmId(null);
-      setStatusMessage(`Error: ${message}`);
+      dispatch({ type: "overlay/memory/delete-confirm", memoryId: null });
+      dispatch({ type: "status/set", value: `Error: ${message}` });
     }
     return;
   }
 
   if (key.escape) {
-    setMemoryDeleteConfirmId(null);
-    setMemoryEditState(null);
-    setMemoryViewId(null);
-    setMemorySnapshot(null);
-    setMemoryOverlayMode("hidden");
+    dispatch({ type: "overlay/close" });
     return;
   }
 
   if (key.upArrow) {
-    setSelectedMemoryIndex((current) => Math.max(0, current - 1));
+    dispatch({ type: "overlay/memory/select", selectedIndex: Math.max(0, memoryOverlay.selectedIndex - 1) });
     return;
   }
 
   if (key.downArrow) {
-    setSelectedMemoryIndex((current) => Math.min(Math.max(0, memories.length - 1), current + 1));
+    dispatch({
+      type: "overlay/memory/select",
+      selectedIndex: Math.min(Math.max(0, memories.length - 1), memoryOverlay.selectedIndex + 1),
+    });
     return;
   }
 
   if (inputChar === "d" || inputChar === "D") {
-    setMemoryDeleteConfirmId(selected.id);
+    dispatch({ type: "overlay/memory/delete-confirm", memoryId: selected.id });
     return;
   }
 
   if (inputChar === "e" || inputChar === "E") {
-    setMemoryDeleteConfirmId(null);
-    setMemoryEditState(createMemoryEditState(selected));
-    setMemoryViewId(selected.id);
+    dispatch({ type: "overlay/memory/delete-confirm", memoryId: null });
+    dispatch({ type: "overlay/memory/edit", value: createMemoryEditState(selected) });
+    dispatch({ type: "overlay/memory/view", memoryId: selected.id });
     return;
   }
 
   if (key.return || inputChar === "v" || inputChar === "V") {
-    setMemoryViewId((current) => current === selected.id ? null : selected.id);
+    dispatch({
+      type: "overlay/memory/view",
+      memoryId: memoryOverlay.viewMemoryId === selected.id ? null : selected.id,
+    });
   }
 }
 
@@ -316,52 +239,56 @@ function handleSessionListInput({
   inputChar,
   key,
   activeSnapshot,
-  sessionDeleteConfirmId,
+  dispatch,
   sessions,
-  selectedSessionIndex,
+  sessionsOverlay,
   sessionStore,
-  setSessionDeleteConfirmId,
   setSessions,
-  setSessionsVisible,
-  setSelectedSessionIndex,
   setSnapshot,
-  setStatusMessage,
 }: {
   inputChar: string;
   key: Key;
   activeSnapshot: SessionSnapshot | null;
-  sessionDeleteConfirmId: string | null;
+  dispatch: Dispatch<UiAction>;
   sessions: SessionSummary[];
-  selectedSessionIndex: number;
+  sessionsOverlay: Extract<UiState["overlay"], { kind: "sessions" }>;
   sessionStore: SessionStore | null;
-  setSessionDeleteConfirmId: UseAppInputOptions["setSessionDeleteConfirmId"];
-  setSessions: UseAppInputOptions["setSessions"];
-  setSessionsVisible: UseAppInputOptions["setSessionsVisible"];
-  setSelectedSessionIndex: UseAppInputOptions["setSelectedSessionIndex"];
-  setSnapshot: UseAppInputOptions["setSnapshot"];
-  setStatusMessage: UseAppInputOptions["setStatusMessage"];
+  setSessions: Dispatch<SetStateAction<SessionSummary[]>>;
+  setSnapshot: Dispatch<SetStateAction<SessionSnapshot | null>>;
 }) {
-  const selected = sessions[selectedSessionIndex];
-  if (!selected || !sessionStore) {
+  const selected = sessions[sessionsOverlay.selectedIndex];
+  if (!selected) {
+    if (key.escape || sessions.length === 0 || !sessionStore) {
+      dispatch({ type: "overlay/close" });
+      return;
+    }
+
+    dispatch({
+      type: "overlay/sessions/select",
+      selectedIndex: clampListIndex(sessionsOverlay.selectedIndex, sessions.length),
+    });
+    return;
+  }
+
+  if (!sessionStore) {
     if (key.escape) {
-      setSessionDeleteConfirmId(null);
-      setSessionsVisible(false);
+      dispatch({ type: "overlay/close" });
     }
     return;
   }
 
-  if (sessionDeleteConfirmId) {
+  if (sessionsOverlay.deleteConfirmSessionId) {
     if (key.escape) {
-      setSessionDeleteConfirmId(null);
+      dispatch({ type: "overlay/sessions/delete-confirm", sessionId: null });
       return;
     }
 
-    if (!key.return || selected.id !== sessionDeleteConfirmId) {
+    if (!key.return || selected.id !== sessionsOverlay.deleteConfirmSessionId) {
       return;
     }
 
     try {
-      const deletedIndex = selectedSessionIndex;
+      const deletedIndex = sessionsOverlay.selectedIndex;
       sessionStore.deleteSession(selected.id);
       let nextSessions = sessionStore.listSessions();
       let nextSelectedIndex = clampListIndex(deletedIndex, nextSessions.length);
@@ -382,35 +309,37 @@ function handleSessionListInput({
       }
 
       setSessions(nextSessions);
-      setSelectedSessionIndex(nextSelectedIndex);
-      setSessionDeleteConfirmId(null);
-      setStatusMessage(`Deleted ${selected.title}.`);
+      dispatch({ type: "overlay/sessions/select", selectedIndex: nextSelectedIndex });
+      dispatch({ type: "overlay/sessions/delete-confirm", sessionId: null });
+      dispatch({ type: "status/set", value: `Deleted ${selected.title}.` });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      setSessionDeleteConfirmId(null);
-      setStatusMessage(`Error: ${message}`);
+      dispatch({ type: "overlay/sessions/delete-confirm", sessionId: null });
+      dispatch({ type: "status/set", value: `Error: ${message}` });
     }
     return;
   }
 
   if (key.escape) {
-    setSessionDeleteConfirmId(null);
-    setSessionsVisible(false);
+    dispatch({ type: "overlay/close" });
     return;
   }
 
   if (key.upArrow) {
-    setSelectedSessionIndex((current) => Math.max(0, current - 1));
+    dispatch({ type: "overlay/sessions/select", selectedIndex: Math.max(0, sessionsOverlay.selectedIndex - 1) });
     return;
   }
 
   if (key.downArrow) {
-    setSelectedSessionIndex((current) => Math.min(Math.max(0, sessions.length - 1), current + 1));
+    dispatch({
+      type: "overlay/sessions/select",
+      selectedIndex: Math.min(Math.max(0, sessions.length - 1), sessionsOverlay.selectedIndex + 1),
+    });
     return;
   }
 
   if (inputChar === "d" || inputChar === "D") {
-    setSessionDeleteConfirmId(selected.id);
+    dispatch({ type: "overlay/sessions/delete-confirm", sessionId: selected.id });
     return;
   }
 
@@ -419,48 +348,48 @@ function handleSessionListInput({
   }
 
   try {
-    setSessionDeleteConfirmId(null);
+    dispatch({ type: "overlay/sessions/delete-confirm", sessionId: null });
     setSnapshot(sessionStore.loadSession(selected.id));
-    setSessionsVisible(false);
-    setStatusMessage(`Switched to ${selected.title}.`);
+    dispatch({ type: "overlay/close" });
+    dispatch({ type: "status/set", value: `Switched to ${selected.title}.` });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    setStatusMessage(`Error: ${message}`);
+    dispatch({ type: "status/set", value: `Error: ${message}` });
   }
 }
 
 function applyTextEditKey(
   key: Key,
   inputChar: string,
-  setMemoryEditState: UseAppInputOptions["setMemoryEditState"],
+  dispatch: Dispatch<UiAction>,
 ) {
   if (key.leftArrow) {
-    setMemoryEditState((current) => current ? moveActiveCursor(current, current[current.activeField].cursorIndex - 1) : current);
+    dispatch({ type: "overlay/memory/edit", value: (current) => current ? moveActiveCursor(current, current[current.activeField].cursorIndex - 1) : current });
     return true;
   }
 
   if (key.rightArrow) {
-    setMemoryEditState((current) => current ? moveActiveCursor(current, current[current.activeField].cursorIndex + 1) : current);
+    dispatch({ type: "overlay/memory/edit", value: (current) => current ? moveActiveCursor(current, current[current.activeField].cursorIndex + 1) : current });
     return true;
   }
 
   if (key.home) {
-    setMemoryEditState((current) => current ? moveActiveCursor(current, 0) : current);
+    dispatch({ type: "overlay/memory/edit", value: (current) => current ? moveActiveCursor(current, 0) : current });
     return true;
   }
 
   if (key.end) {
-    setMemoryEditState((current) => current ? moveActiveCursor(current, Array.from(current[current.activeField].value).length) : current);
+    dispatch({ type: "overlay/memory/edit", value: (current) => current ? moveActiveCursor(current, Array.from(current[current.activeField].value).length) : current });
     return true;
   }
 
   if (key.backspace) {
-    setMemoryEditState((current) => current ? deleteFromActiveField(current, true) : current);
+    dispatch({ type: "overlay/memory/edit", value: (current) => current ? deleteFromActiveField(current, true) : current });
     return true;
   }
 
   if (key.delete) {
-    setMemoryEditState((current) => current ? deleteFromActiveField(current, false) : current);
+    dispatch({ type: "overlay/memory/edit", value: (current) => current ? deleteFromActiveField(current, false) : current });
     return true;
   }
 
@@ -468,7 +397,7 @@ function applyTextEditKey(
     return false;
   }
 
-  setMemoryEditState((current) => current ? insertIntoActiveField(current, inputChar) : current);
+  dispatch({ type: "overlay/memory/edit", value: (current) => current ? insertIntoActiveField(current, inputChar) : current });
   return true;
 }
 

@@ -1,62 +1,33 @@
 import { useCallback, useRef, type Dispatch, type SetStateAction } from "react";
 import { handleAppCommand } from "./handle-app-command.js";
-import type { PendingConfirmation } from "./use-app-input.js";
 import type { ChatController } from "../controller/chat-controller.js";
 import type { SessionSnapshot, SessionStore } from "../controller/session-store.js";
 import { parseSlashCommand } from "../controller/slash-commands.js";
 import type { ChatMessage } from "../types/chat.js";
 import type { SessionSummary } from "../types/session.js";
 import type { ToolConfirmationRequest, ToolExecutionRecord } from "../types/tool.js";
-import type { MemoryEditState, MemoryOverlayMode } from "../app.js";
+import type { UiAction } from "./ui-state.js";
 
 interface UseSubmitHandlerOptions {
   activeSnapshot: SessionSnapshot | null;
   controller: ChatController | null;
+  dispatch: Dispatch<UiAction>;
   onExitRequested(): void;
   pendingResetConfirmation: boolean;
   sessionStore: SessionStore | null;
-  setHelpVisible: Dispatch<SetStateAction<boolean>>;
-  setMemoryDeleteConfirmId: Dispatch<SetStateAction<string | null>>;
-  setMemoryEditState: Dispatch<SetStateAction<MemoryEditState | null>>;
-  setMemoryOverlayMode: Dispatch<SetStateAction<MemoryOverlayMode>>;
-  setMemorySnapshot: Dispatch<SetStateAction<SessionSnapshot | null>>;
-  setMemoryViewId: Dispatch<SetStateAction<string | null>>;
-  setInput: Dispatch<SetStateAction<string>>;
-  setIsStreaming: Dispatch<SetStateAction<boolean>>;
-  setPendingConfirmations: Dispatch<SetStateAction<PendingConfirmation[]>>;
-  setPendingResetConfirmation: Dispatch<SetStateAction<boolean>>;
-  setSelectedMemoryIndex: Dispatch<SetStateAction<number>>;
-  setSelectedSessionIndex: Dispatch<SetStateAction<number>>;
-  setSessionDeleteConfirmId: Dispatch<SetStateAction<string | null>>;
   setSessions: Dispatch<SetStateAction<SessionSummary[]>>;
-  setSessionsVisible: Dispatch<SetStateAction<boolean>>;
   setSnapshot: Dispatch<SetStateAction<SessionSnapshot | null>>;
-  setStatusMessage: Dispatch<SetStateAction<string | undefined>>;
 }
 
 export function useSubmitHandler({
   activeSnapshot,
   controller,
+  dispatch,
   onExitRequested,
   pendingResetConfirmation,
   sessionStore,
-  setHelpVisible,
-  setMemoryDeleteConfirmId,
-  setMemoryEditState,
-  setMemoryOverlayMode,
-  setMemorySnapshot,
-  setMemoryViewId,
-  setInput,
-  setIsStreaming,
-  setPendingConfirmations,
-  setPendingResetConfirmation,
-  setSelectedMemoryIndex,
-  setSelectedSessionIndex,
-  setSessionDeleteConfirmId,
   setSessions,
-  setSessionsVisible,
   setSnapshot,
-  setStatusMessage,
 }: UseSubmitHandlerOptions) {
   const submitInFlightRef = useRef(false);
 
@@ -77,32 +48,21 @@ export function useSubmitHandler({
         await handleAppCommand({
           activeSnapshot,
           command,
+          dispatch,
           pendingResetConfirmation,
           sessionStore,
           onExitRequested,
-          setHelpVisible,
-          setMemoryDeleteConfirmId,
-          setMemoryEditState,
-          setMemoryOverlayMode,
-          setMemorySnapshot,
-          setMemoryViewId,
-          setPendingResetConfirmation,
-          setSessionDeleteConfirmId,
           setSnapshot,
           setSessions,
-          setSessionsVisible,
-          setSelectedMemoryIndex,
-          setSelectedSessionIndex,
-          setStatusMessage,
         });
-        setInput("");
+        dispatch({ type: "input/set", value: "" });
         return;
       }
 
-      setInput("");
-      setStatusMessage(undefined);
-      setPendingResetConfirmation(false);
-      setIsStreaming(true);
+      dispatch({ type: "input/set", value: "" });
+      dispatch({ type: "status/set", value: undefined });
+      dispatch({ type: "reset-confirmation/set", value: false });
+      dispatch({ type: "streaming/set", value: true });
 
       try {
         await controller.sendMessage(activeSnapshot.session, value, {
@@ -150,41 +110,27 @@ export function useSubmitHandler({
             setSessions(sessionStore.listSessions());
           },
           requestConfirmation(request) {
-            return requestToolConfirmation(setPendingConfirmations, request);
+            return requestToolConfirmation(dispatch, request);
           },
         });
       } finally {
-        setIsStreaming(false);
+        dispatch({ type: "streaming/set", value: false });
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      setStatusMessage(`Error: ${message}`);
+      dispatch({ type: "status/set", value: `Error: ${message}` });
     } finally {
       submitInFlightRef.current = false;
     }
   }, [
     activeSnapshot,
     controller,
+    dispatch,
     onExitRequested,
     pendingResetConfirmation,
     sessionStore,
-    setHelpVisible,
-    setMemoryDeleteConfirmId,
-    setMemoryEditState,
-    setMemoryOverlayMode,
-    setMemorySnapshot,
-    setMemoryViewId,
-    setInput,
-    setIsStreaming,
-    setPendingConfirmations,
-    setPendingResetConfirmation,
-    setSelectedMemoryIndex,
-    setSelectedSessionIndex,
-    setSessionDeleteConfirmId,
     setSessions,
-    setSessionsVisible,
     setSnapshot,
-    setStatusMessage,
   ]);
 }
 
@@ -215,10 +161,10 @@ function upsertToolExecution(
 }
 
 function requestToolConfirmation(
-  setPendingConfirmations: Dispatch<SetStateAction<PendingConfirmation[]>>,
+  dispatch: Dispatch<UiAction>,
   request: ToolConfirmationRequest,
 ) {
   return new Promise<boolean>((resolve) => {
-    setPendingConfirmations((current) => [...current, { request, resolve }]);
+    dispatch({ type: "confirmations/enqueue", request, resolve });
   });
 }
