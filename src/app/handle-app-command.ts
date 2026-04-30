@@ -81,9 +81,12 @@ export async function handleAppCommand({
         }
       }
 
-      const initialMemorySnapshot = activeSnapshot ?? sessionStore.ensureSession();
+      if (!activeSnapshot) {
+        setSnapshot(sessionStore.ensureSession());
+      }
+
       dispatch({ type: "reset-confirmation/set", value: false });
-      dispatch({ type: "overlay/memory/open", snapshot: initialMemorySnapshot, selectedIndex: 0 });
+      dispatch({ type: "overlay/memory/open", selectedIndex: 0 });
       setSessions(sessionStore.listSessions());
       dispatch({ type: "status/set", value: "Memory opened." });
       return;

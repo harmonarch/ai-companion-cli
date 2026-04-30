@@ -50,6 +50,7 @@ export function App({
   const [uiState, dispatch] = useReducer(uiReducer, initialUiState);
   const [snapshot, setSnapshot] = useState<SessionSnapshot | null>(null);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
+  const sessionStore = services.sessionStore;
 
   useEffect(() => {
     try {
@@ -75,11 +76,11 @@ export function App({
   }, []);
 
   useEffect(() => {
-    if (!services.sessionStore) {
+    if (!sessionStore) {
       return;
     }
 
-    const resolution = resolveInitialSession(services.sessionStore, initialSessionId);
+    const resolution = resolveInitialSession(sessionStore, initialSessionId);
 
     if (resolution.snapshot) {
       setSnapshot(resolution.snapshot);
@@ -90,17 +91,42 @@ export function App({
     }
 
     dispatch({ type: "status/set", value: resolution.statusMessage });
-  }, [initialSessionId, services]);
+  }, [initialSessionId, sessionStore]);
 
   const activeConfirmation = getActiveConfirmation(uiState);
   const memoryOverlay = getMemoryOverlay(uiState);
   const sessionsOverlay = getSessionsOverlay(uiState);
 
+  useEffect(() => {
+    if (!memoryOverlay || !snapshot) {
+      return;
+    }
+
+    const memoryIds = new Set(snapshot.memories.map((memory) => memory.id));
+    const maxIndex = Math.max(0, snapshot.memories.length - 1);
+
+    if (memoryOverlay.selectedIndex > maxIndex) {
+      dispatch({ type: "overlay/memory/select", selectedIndex: maxIndex });
+    }
+
+    if (memoryOverlay.deleteConfirmMemoryId && !memoryIds.has(memoryOverlay.deleteConfirmMemoryId)) {
+      dispatch({ type: "overlay/memory/delete-confirm", memoryId: null });
+    }
+
+    if (memoryOverlay.viewMemoryId && !memoryIds.has(memoryOverlay.viewMemoryId)) {
+      dispatch({ type: "overlay/memory/view", memoryId: null });
+    }
+
+    if (memoryOverlay.editState && !memoryIds.has(memoryOverlay.editState.memoryId)) {
+      dispatch({ type: "overlay/memory/edit", value: null });
+    }
+  }, [memoryOverlay, snapshot]);
+
   useAppInput({
     activeConfirmation,
     activeSnapshot: snapshot,
     dispatch,
-    sessionStore: services.sessionStore,
+    sessionStore,
     sessions,
     setSessions,
     setSnapshot,
@@ -113,7 +139,7 @@ export function App({
     dispatch,
     onExitRequested: onExitRequested ?? exit,
     pendingResetConfirmation: uiState.pendingResetConfirmation,
-    sessionStore: services.sessionStore,
+    sessionStore,
     setSessions,
     setSnapshot,
   });
@@ -122,7 +148,7 @@ export function App({
     return <Text>{sanitizeSingleLineText(services.error, 240)}</Text>;
   }
 
-  if (!services.controller || !services.sessionStore) {
+  if (!services.controller || !sessionStore) {
     return <Text>{uiState.statusMessage ? sanitizeSingleLineText(uiState.statusMessage, 240) : "Loading..."}</Text>;
   }
 
@@ -156,7 +182,7 @@ export function App({
         {memoryOverlay ? (
           <Box marginBottom={1}>
             <MemoryList
-              memoryDetails={memoryOverlay.sessionSnapshot?.memoryDetails ?? []}
+              memoryDetails={activeSnapshot.memoryDetails}
               selectedIndex={memoryOverlay.selectedIndex}
               deleteConfirmMemoryId={memoryOverlay.deleteConfirmMemoryId}
               viewMemoryId={memoryOverlay.viewMemoryId}

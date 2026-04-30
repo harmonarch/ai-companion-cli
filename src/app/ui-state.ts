@@ -1,5 +1,4 @@
 import type { SetStateAction } from "react";
-import type { SessionSnapshot } from "../controller/session-store.js";
 import type { ToolConfirmationRequest } from "../types/tool.js";
 
 export interface PendingConfirmation {
@@ -34,7 +33,6 @@ export type OverlayState =
       deleteConfirmMemoryId: string | null;
       viewMemoryId: string | null;
       editState: MemoryEditState | null;
-      sessionSnapshot: SessionSnapshot | null;
     };
 
 export interface UiState {
@@ -58,12 +56,11 @@ export type UiAction =
   | { type: "overlay/sessions/open"; selectedIndex: number }
   | { type: "overlay/sessions/select"; selectedIndex: number }
   | { type: "overlay/sessions/delete-confirm"; sessionId: string | null }
-  | { type: "overlay/memory/open"; snapshot: SessionSnapshot | null; selectedIndex: number }
+  | { type: "overlay/memory/open"; selectedIndex: number }
   | { type: "overlay/memory/select"; selectedIndex: number }
   | { type: "overlay/memory/delete-confirm"; memoryId: string | null }
   | { type: "overlay/memory/view"; memoryId: string | null }
-  | { type: "overlay/memory/edit"; value: SetStateAction<MemoryEditState | null> }
-  | { type: "overlay/memory/snapshot"; snapshot: SessionSnapshot | null };
+  | { type: "overlay/memory/edit"; value: SetStateAction<MemoryEditState | null> };
 
 export const initialUiState: UiState = {
   input: "",
@@ -156,7 +153,6 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
           deleteConfirmMemoryId: null,
           viewMemoryId: null,
           editState: null,
-          sessionSnapshot: action.snapshot,
         },
       };
     case "overlay/memory/select":
@@ -201,17 +197,6 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
         overlay: {
           ...state.overlay,
           editState: applyUpdate(state.overlay.editState, action.value),
-        },
-      };
-    case "overlay/memory/snapshot":
-      if (state.overlay.kind !== "memory") {
-        return state;
-      }
-      return {
-        ...state,
-        overlay: {
-          ...state.overlay,
-          sessionSnapshot: action.snapshot,
         },
       };
     default:

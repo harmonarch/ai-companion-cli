@@ -39,6 +39,7 @@ export function useAppInput({
 
     if (uiState.overlay.kind === "memory") {
       handleMemoryInput({
+        activeSnapshot,
         dispatch,
         inputChar,
         key,
@@ -97,6 +98,7 @@ function handleHelpInput(
 }
 
 function handleMemoryInput({
+  activeSnapshot,
   dispatch,
   inputChar,
   key,
@@ -104,6 +106,7 @@ function handleMemoryInput({
   sessionStore,
   setSnapshot,
 }: {
+  activeSnapshot: SessionSnapshot | null;
   dispatch: Dispatch<UiAction>;
   inputChar: string;
   key: Key;
@@ -111,9 +114,10 @@ function handleMemoryInput({
   sessionStore: SessionStore | null;
   setSnapshot: Dispatch<SetStateAction<SessionSnapshot | null>>;
 }) {
-  const memories = memoryOverlay.sessionSnapshot?.memories ?? [];
+  const memories = activeSnapshot?.memories ?? [];
   const selected = memories[memoryOverlay.selectedIndex];
   const memoryEditState = memoryOverlay.editState;
+  const sessionId = activeSnapshot?.session.id;
 
   if (memoryEditState && selected) {
     if (key.escape) {
@@ -132,15 +136,14 @@ function handleMemoryInput({
       return;
     }
 
-    if (key.return && sessionStore && memoryOverlay.sessionSnapshot) {
+    if (key.return && sessionStore && sessionId) {
       try {
         sessionStore.updateMemory(memoryEditState.memoryId, {
           subject: memoryEditState.subject.value,
           value: memoryEditState.value.value,
         });
-        const nextSnapshot = sessionStore.loadSession(memoryOverlay.sessionSnapshot.session.id);
+        const nextSnapshot = sessionStore.loadSession(sessionId);
         setSnapshot((current) => current?.session.id === nextSnapshot.session.id ? nextSnapshot : current);
-        dispatch({ type: "overlay/memory/snapshot", snapshot: nextSnapshot });
         dispatch({ type: "overlay/memory/edit", value: null });
         dispatch({ type: "overlay/memory/view", memoryId: memoryEditState.memoryId });
         dispatch({ type: "status/set", value: "Memory updated." });
@@ -158,7 +161,7 @@ function handleMemoryInput({
     return;
   }
 
-  if (!selected || !sessionStore || !memoryOverlay.sessionSnapshot) {
+  if (!selected || !sessionStore || !sessionId) {
     if (key.escape) {
       dispatch({ type: "overlay/close" });
     }
@@ -178,9 +181,8 @@ function handleMemoryInput({
     try {
       const deletedIndex = memoryOverlay.selectedIndex;
       sessionStore.deleteMemory(selected.id);
-      const nextSnapshot = sessionStore.loadSession(memoryOverlay.sessionSnapshot.session.id);
+      const nextSnapshot = sessionStore.loadSession(sessionId);
       setSnapshot((current) => current?.session.id === nextSnapshot.session.id ? nextSnapshot : current);
-      dispatch({ type: "overlay/memory/snapshot", snapshot: nextSnapshot });
       dispatch({ type: "overlay/memory/select", selectedIndex: clampListIndex(deletedIndex, nextSnapshot.memories.length) });
       dispatch({ type: "overlay/memory/delete-confirm", memoryId: null });
       dispatch({ type: "overlay/memory/view", memoryId: memoryOverlay.viewMemoryId === selected.id ? null : memoryOverlay.viewMemoryId });
