@@ -19,6 +19,7 @@ interface SendMessageHandlers {
   onUserMessage(message: ChatMessage): void;
   onAssistantMessage(message: ChatMessage): void;
   onAssistantChunk(messageId: string, chunk: string): void;
+  onAssistantReady(messageId: string, content: string): void;
   onAssistantCompleted(messageId: string, content: string): void;
   onToolExecution(execution: ToolExecutionRecord): void;
   onSessionUpdated(session: SessionRecord): void;
@@ -147,6 +148,7 @@ export class ChatController {
       }
 
       this.messageRepository.updateContent(session.id, assistantMessage.id, assistantText, {});
+      handlers.onAssistantReady(assistantMessage.id, assistantText);
       const completedAssistantMessage = {
         ...assistantMessage,
         content: assistantText,

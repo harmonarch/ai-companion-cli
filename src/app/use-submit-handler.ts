@@ -64,6 +64,15 @@ export function useSubmitHandler({
       dispatch({ type: "reset-confirmation/set", value: false });
       dispatch({ type: "streaming/set", value: true });
 
+      let streamingCleared = false;
+      const clearStreaming = () => {
+        if (streamingCleared) {
+          return;
+        }
+        streamingCleared = true;
+        dispatch({ type: "streaming/set", value: false });
+      };
+
       try {
         await controller.sendMessage(activeSnapshot.session, value, {
           onUserMessage(message) {
@@ -85,6 +94,9 @@ export function useSubmitHandler({
                 ),
               };
             });
+          },
+          onAssistantReady() {
+            clearStreaming();
           },
           onAssistantCompleted(messageId, content) {
             setSnapshot((current) => {
@@ -114,7 +126,7 @@ export function useSubmitHandler({
           },
         });
       } finally {
-        dispatch({ type: "streaming/set", value: false });
+        clearStreaming();
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
