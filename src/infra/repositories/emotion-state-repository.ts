@@ -43,7 +43,7 @@ function parseEmotionState(value: unknown): EmotionState {
     intimacy: readNumber(record.intimacy, "emotion.intimacy"),
     boundaryActive: readBoolean(record.boundaryActive, "emotion.boundaryActive"),
     lastTrigger,
-    turnsSinceTrigger: readNumber(record.turnsSinceTrigger, "emotion.turnsSinceTrigger"),
+    stepsSinceTrigger: readNumber(record.stepsSinceTrigger ?? record.turnsSinceTrigger, "emotion.stepsSinceTrigger"),
     updatedAt: readString(record.updatedAt, "emotion.updatedAt"),
   };
 }

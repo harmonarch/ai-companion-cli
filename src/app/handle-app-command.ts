@@ -259,7 +259,7 @@ function formatEmotionSummary(snapshot: SessionSnapshot, debug: boolean) {
     `intimacy=${state.intimacy.toFixed(2)}`,
     `boundary=${state.boundaryActive ? "on" : "off"}`,
     `trigger=${state.lastTrigger ?? "none"}`,
-    `turnsSinceTrigger=${state.turnsSinceTrigger}`,
+    `stepsSinceTrigger=${state.stepsSinceTrigger}`,
   ].join(" | ");
 }
 

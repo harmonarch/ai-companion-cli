@@ -16,7 +16,7 @@ export interface EmotionState {
   intimacy: number;
   boundaryActive: boolean;
   lastTrigger?: EmotionTransitionReason;
-  turnsSinceTrigger: number;
+  stepsSinceTrigger: number;
   updatedAt: string;
 }
 

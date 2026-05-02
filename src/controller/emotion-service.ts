@@ -138,7 +138,7 @@ export class EmotionService {
       `intimacy=${state.intimacy.toFixed(2)}`,
       `boundary=${state.boundaryActive ? "on" : "off"}`,
       `trigger=${state.lastTrigger ?? "none"}`,
-      `turnsSinceTrigger=${state.turnsSinceTrigger}`,
+      `stepsSinceTrigger=${state.stepsSinceTrigger}`,
     ].join(" | ");
   }
 }
@@ -150,7 +150,7 @@ function createEmotionState(sessionId: string, now: Date): EmotionState {
     intensity: 0,
     intimacy: 0.3,
     boundaryActive: false,
-    turnsSinceTrigger: 0,
+    stepsSinceTrigger: 0,
     updatedAt: now.toISOString(),
   };
 }
@@ -160,7 +160,7 @@ function applyUserTurn(state: EmotionState, userText: string, now: Date): Emotio
   let intimacy = state.intimacy;
   let boundaryActive = state.boundaryActive;
   let lastTrigger: EmotionTransitionReason | undefined;
-  let turnsSinceTrigger = state.turnsSinceTrigger + 1;
+  let stepsSinceTrigger = state.stepsSinceTrigger + 1;
 
   const hasDisrespect = matchesAny(userText, DISRESPECT_PATTERNS);
   const hasPressure = matchesAny(userText, PRESSURE_PATTERNS);
@@ -171,14 +171,14 @@ function applyUserTurn(state: EmotionState, userText: string, now: Date): Emotio
     intensity += DISRESPECT_INCREASE;
     intimacy -= CONFLICT_INTIMACY_DECREASE;
     lastTrigger = "disrespect";
-    turnsSinceTrigger = 0;
+    stepsSinceTrigger = 0;
   }
 
   if (hasPressure) {
     intensity += PRESSURE_INCREASE;
     intimacy -= CONFLICT_INTIMACY_DECREASE;
     lastTrigger = "pressure";
-    turnsSinceTrigger = 0;
+    stepsSinceTrigger = 0;
   }
 
   if (hasBoundary) {
@@ -186,7 +186,7 @@ function applyUserTurn(state: EmotionState, userText: string, now: Date): Emotio
     intimacy -= BOUNDARY_INTIMACY_DECREASE;
     boundaryActive = true;
     lastTrigger = "boundary";
-    turnsSinceTrigger = 0;
+    stepsSinceTrigger = 0;
   }
 
   if (hasRepair) {
@@ -194,7 +194,7 @@ function applyUserTurn(state: EmotionState, userText: string, now: Date): Emotio
     intimacy += COOPERATION_INTIMACY_INCREASE;
     boundaryActive = false;
     lastTrigger = "repair";
-    turnsSinceTrigger = 0;
+    stepsSinceTrigger = 0;
   }
 
   if (!hasDisrespect && !hasPressure && !hasBoundary && !hasRepair) {
@@ -211,7 +211,7 @@ function applyUserTurn(state: EmotionState, userText: string, now: Date): Emotio
     intimacy,
     boundaryActive,
     lastTrigger,
-    turnsSinceTrigger,
+    stepsSinceTrigger,
     updatedAt: now.toISOString(),
   });
 }
@@ -226,7 +226,7 @@ function applyAssistantTurn(state: EmotionState, assistantText: string, now: Dat
     intensity,
     boundaryActive,
     lastTrigger: state.lastTrigger ?? "assistant_settle",
-    turnsSinceTrigger: state.turnsSinceTrigger + 1,
+    stepsSinceTrigger: state.stepsSinceTrigger + 1,
     updatedAt: now.toISOString(),
   });
 }
