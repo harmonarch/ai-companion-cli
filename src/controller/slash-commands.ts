@@ -3,6 +3,7 @@ export type SlashCommand =
   | { type: "sessions" }
   | { type: "switch"; target?: string }
   | { type: "memory"; target?: string }
+  | { type: "profile"; target?: string }
   | { type: "reset"; target?: string }
   | { type: "help" }
   | { type: "exit" }
@@ -50,9 +51,15 @@ export const SLASH_COMMAND_SPECS = [
     build: (target) => ({ type: "memory", target }),
   },
   {
+    name: "profile",
+    usage: "/profile | /profile set <name|role|selfReference> <value> | /profile clear [confirm|cancel]",
+    description: "view the assistant profile, set name/role/selfReference, or clear it",
+    build: (target) => ({ type: "profile", target }),
+  },
+  {
     name: "reset",
     usage: "/reset",
-    description: "stage a full reset of chat history and memory",
+    description: "stage a full reset of chat history, memory, and assistant profile",
     build: (target) => ({ type: "reset", target }),
   },
   {

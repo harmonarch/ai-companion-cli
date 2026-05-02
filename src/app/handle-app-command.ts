@@ -1,13 +1,17 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { SessionSnapshot, SessionStore } from "../controller/session-store.js";
 import type { SlashCommand } from "../controller/slash-commands.js";
+import type { AssistantProfileRepository } from "../infra/repositories/assistant-profile-repository.js";
+import type { AssistantProfileField } from "../types/assistant-profile.js";
 import type { SessionSummary } from "../types/session.js";
 import type { UiAction } from "./ui-state.js";
 
 interface HandleAppCommandOptions {
   activeSnapshot: SessionSnapshot | null;
+  assistantProfileRepository: AssistantProfileRepository;
   command: SlashCommand;
   dispatch: Dispatch<UiAction>;
+  pendingProfileClearConfirmation: boolean;
   pendingResetConfirmation: boolean;
   sessionStore: SessionStore;
   onExitRequested(): void;
@@ -17,8 +21,10 @@ interface HandleAppCommandOptions {
 
 export async function handleAppCommand({
   activeSnapshot,
+  assistantProfileRepository,
   command,
   dispatch,
+  pendingProfileClearConfirmation,
   pendingResetConfirmation,
   sessionStore,
   onExitRequested,
@@ -86,9 +92,73 @@ export async function handleAppCommand({
       }
 
       dispatch({ type: "reset-confirmation/set", value: false });
+      dispatch({ type: "profile-clear-confirmation/set", value: false });
       dispatch({ type: "overlay/memory/open", selectedIndex: 0 });
       setSessions(sessionStore.listSessions());
       dispatch({ type: "status/set", value: "Memory opened." });
+      return;
+    }
+    case "profile": {
+      dispatch({ type: "reset-confirmation/set", value: false });
+      dispatch({ type: "overlay/close" });
+
+      if (!command.target) {
+        dispatch({ type: "profile-clear-confirmation/set", value: false });
+        dispatch({ type: "status/set", value: formatAssistantProfile(assistantProfileRepository) });
+        return;
+      }
+
+      const parts = command.target.trim().split(/\s+/);
+      const action = parts[0]?.toLowerCase();
+
+      if (action === "clear") {
+        const subcommand = parts[1]?.toLowerCase();
+
+        if (!subcommand) {
+          dispatch({ type: "profile-clear-confirmation/set", value: true });
+          dispatch({ type: "status/set", value: "Profile clear staged. Run /profile clear confirm to remove the assistant profile, or /profile clear cancel to abort." });
+          return;
+        }
+
+        if (subcommand === "cancel") {
+          dispatch({ type: "profile-clear-confirmation/set", value: false });
+          dispatch({ type: "status/set", value: "Profile clear canceled." });
+          return;
+        }
+
+        if (subcommand !== "confirm") {
+          dispatch({ type: "status/set", value: "Usage: /profile, /profile set <name|role|selfReference> <value>, /profile clear, /profile clear confirm, /profile clear cancel" });
+          return;
+        }
+
+        if (!pendingProfileClearConfirmation) {
+          dispatch({ type: "status/set", value: "Run /profile clear first, then /profile clear confirm." });
+          return;
+        }
+
+        assistantProfileRepository.clear();
+        dispatch({ type: "profile-clear-confirmation/set", value: false });
+        dispatch({ type: "status/set", value: "Assistant profile cleared." });
+        return;
+      }
+
+      if (action !== "set") {
+        dispatch({ type: "profile-clear-confirmation/set", value: false });
+        dispatch({ type: "status/set", value: "Usage: /profile, /profile set <name|role|selfReference> <value>, /profile clear, /profile clear confirm, /profile clear cancel" });
+        return;
+      }
+
+      const field = parts[1] as AssistantProfileField | undefined;
+      const value = parts.slice(2).join(" ").trim();
+      if (!isAssistantProfileField(field) || !value) {
+        dispatch({ type: "profile-clear-confirmation/set", value: false });
+        dispatch({ type: "status/set", value: "Usage: /profile set <name|role|selfReference> <value>" });
+        return;
+      }
+
+      const nextProfile = assistantProfileRepository.setField(field, value);
+      dispatch({ type: "profile-clear-confirmation/set", value: false });
+      dispatch({ type: "status/set", value: `Assistant profile updated: ${formatProfileField(field)} = ${readProfileField(nextProfile, field)}` });
       return;
     }
     case "reset": {
@@ -96,8 +166,9 @@ export async function handleAppCommand({
 
       if (!action) {
         dispatch({ type: "reset-confirmation/set", value: true });
+        dispatch({ type: "profile-clear-confirmation/set", value: false });
         dispatch({ type: "overlay/close" });
-        dispatch({ type: "status/set", value: "Reset staged. Run /reset confirm to clear all chat history and memory, or /reset cancel to abort." });
+        dispatch({ type: "status/set", value: "Reset staged. Run /reset confirm to clear all chat history, memory, and assistant profile, or /reset cancel to abort." });
         return;
       }
 
@@ -118,11 +189,12 @@ export async function handleAppCommand({
       }
 
       dispatch({ type: "reset-confirmation/set", value: false });
+      dispatch({ type: "profile-clear-confirmation/set", value: false });
       const nextSnapshot = sessionStore.resetAll();
       dispatch({ type: "overlay/close" });
       setSnapshot(nextSnapshot);
       setSessions(sessionStore.listSessions());
-      dispatch({ type: "status/set", value: "All chat history and memory have been reset." });
+      dispatch({ type: "status/set", value: "All chat history, memory, and assistant profile have been reset." });
       return;
     }
     case "help": {
@@ -142,4 +214,35 @@ export async function handleAppCommand({
     default:
       return;
   }
+}
+
+function isAssistantProfileField(field: string | undefined): field is AssistantProfileField {
+  return field === "name" || field === "role" || field === "selfReference";
+}
+
+function formatAssistantProfile(assistantProfileRepository: AssistantProfileRepository) {
+  const profile = assistantProfileRepository.get();
+  if (!profile) {
+    return "No assistant profile configured.";
+  }
+
+  return [
+    "Assistant profile:",
+    profile.name ? `name: ${profile.name}` : "name: —",
+    profile.role ? `role: ${profile.role}` : "role: —",
+    profile.selfReference ? `selfReference: ${profile.selfReference}` : "selfReference: —",
+    `updatedAt: ${profile.meta.updatedAt}`,
+    `updatedBy: ${profile.meta.updatedBy}`,
+  ].join(" | ");
+}
+
+function formatProfileField(field: AssistantProfileField) {
+  return field;
+}
+
+function readProfileField(
+  profile: NonNullable<ReturnType<AssistantProfileRepository["get"]>>,
+  field: AssistantProfileField,
+) {
+  return profile[field];
 }

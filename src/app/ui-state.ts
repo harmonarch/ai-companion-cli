@@ -40,6 +40,7 @@ export interface UiState {
   isStreaming: boolean;
   statusMessage?: string;
   pendingResetConfirmation: boolean;
+  pendingProfileClearConfirmation: boolean;
   pendingConfirmations: PendingConfirmation[];
   overlay: OverlayState;
 }
@@ -49,6 +50,7 @@ export type UiAction =
   | { type: "streaming/set"; value: boolean }
   | { type: "status/set"; value: string | undefined }
   | { type: "reset-confirmation/set"; value: boolean }
+  | { type: "profile-clear-confirmation/set"; value: boolean }
   | { type: "confirmations/enqueue"; request: ToolConfirmationRequest; resolve(value: boolean): void }
   | { type: "confirmations/shift" }
   | { type: "overlay/help/open" }
@@ -67,6 +69,7 @@ export const initialUiState: UiState = {
   isStreaming: false,
   statusMessage: undefined,
   pendingResetConfirmation: false,
+  pendingProfileClearConfirmation: false,
   pendingConfirmations: [],
   overlay: { kind: "none" },
 };
@@ -92,6 +95,11 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
       return {
         ...state,
         pendingResetConfirmation: action.value,
+      };
+    case "profile-clear-confirmation/set":
+      return {
+        ...state,
+        pendingProfileClearConfirmation: action.value,
       };
     case "confirmations/enqueue":
       return {

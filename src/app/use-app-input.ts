@@ -141,7 +141,7 @@ function handleMemoryInput({
         sessionStore.updateMemory(memoryEditState.memoryId, {
           subject: memoryEditState.subject.value,
           value: memoryEditState.value.value,
-        });
+        }, sessionId);
         const nextSnapshot = sessionStore.loadSession(sessionId);
         setSnapshot((current) => current?.session.id === nextSnapshot.session.id ? nextSnapshot : current);
         dispatch({ type: "overlay/memory/edit", value: null });
@@ -180,7 +180,7 @@ function handleMemoryInput({
 
     try {
       const deletedIndex = memoryOverlay.selectedIndex;
-      sessionStore.deleteMemory(selected.id);
+      sessionStore.deleteMemory(selected.id, sessionId);
       const nextSnapshot = sessionStore.loadSession(sessionId);
       setSnapshot((current) => current?.session.id === nextSnapshot.session.id ? nextSnapshot : current);
       dispatch({ type: "overlay/memory/select", selectedIndex: clampListIndex(deletedIndex, nextSnapshot.memories.length) });

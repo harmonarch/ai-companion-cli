@@ -2,6 +2,7 @@ import type { MessageRepository } from "../infra/repositories/message-repository
 import type { RunRepository } from "../infra/repositories/run-repository.js";
 import type { SessionRepository } from "../infra/repositories/session-repository.js";
 import type { ToolExecutionRepository } from "../infra/repositories/tool-execution-repository.js";
+import type { AssistantProfileRepository } from "../infra/repositories/assistant-profile-repository.js";
 import type { ChatMessage } from "../types/chat.js";
 import type {
   MemoryDetailRecord,
@@ -41,6 +42,7 @@ export class SessionStore {
     private readonly runRepository: RunRepository,
     private readonly toolExecutionRepository: ToolExecutionRepository,
     private readonly memoryService: MemoryService,
+    private readonly assistantProfileRepository: AssistantProfileRepository,
     private readonly defaults: { provider: string; model: string },
   ) {}
 
@@ -104,6 +106,7 @@ export class SessionStore {
 
   resetAll() {
     this.memoryService.resetAll();
+    this.assistantProfileRepository.clear();
     this.toolExecutionRepository.deleteAll();
     this.runRepository.deleteAll();
     this.messageRepository.deleteAll();

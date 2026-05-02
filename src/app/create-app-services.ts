@@ -2,6 +2,7 @@ import { ChatController } from "../controller/chat-controller.js";
 import { MemoryService } from "../controller/memory-service.js";
 import { SessionStore } from "../controller/session-store.js";
 import { loadConfig } from "../infra/config/load-config.js";
+import { AssistantProfileRepository } from "../infra/repositories/assistant-profile-repository.js";
 import { MemoryAuditRepository } from "../infra/repositories/memory-audit-repository.js";
 import { MemoryCandidateRepository } from "../infra/repositories/memory-candidate-repository.js";
 import { MemoryRecordRepository } from "../infra/repositories/memory-record-repository.js";
@@ -17,6 +18,7 @@ import { deepseekProvider } from "../providers/deepseek-provider.js";
 export interface AppServiceBundle {
   sessionStore: SessionStore;
   controller: ChatController;
+  assistantProfileRepository: AssistantProfileRepository;
   close(): void;
 }
 
@@ -31,7 +33,8 @@ export function createAppServices(): AppServiceBundle {
   const candidateRepository = new MemoryCandidateRepository(fileStore);
   const memoryRecordRepository = new MemoryRecordRepository(fileStore);
   const memoryAuditRepository = new MemoryAuditRepository(fileStore);
-  const promptLoader = new PromptLoader(config);
+  const assistantProfileRepository = new AssistantProfileRepository(config.workspaceRoot);
+  const promptLoader = new PromptLoader(config, assistantProfileRepository);
   const memoryService = new MemoryService(
     {
       enabled: config.memory.enabled,
@@ -51,6 +54,7 @@ export function createAppServices(): AppServiceBundle {
     runRepository,
     toolExecutionRepository,
     memoryService,
+    assistantProfileRepository,
     {
       provider: config.defaultProvider,
       model: config.defaultModel,
@@ -73,6 +77,7 @@ export function createAppServices(): AppServiceBundle {
   return {
     sessionStore,
     controller,
+    assistantProfileRepository,
     close() {},
   };
 }

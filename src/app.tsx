@@ -25,12 +25,14 @@ import { SessionList } from "./components/SessionList.js";
 import { StatusBar } from "./components/StatusBar.js";
 import type { ChatController } from "./controller/chat-controller.js";
 import type { SessionSnapshot, SessionStore } from "./controller/session-store.js";
+import type { AssistantProfileRepository } from "./infra/repositories/assistant-profile-repository.js";
 import type { SessionSummary } from "./types/session.js";
 import { sanitizeSingleLineText } from "./utils/sanitize-text.js";
 
 interface AppServices {
   sessionStore: SessionStore | null;
   controller: ChatController | null;
+  assistantProfileRepository: AssistantProfileRepository | null;
   error: string | null;
 }
 
@@ -45,6 +47,7 @@ export function App({
   const [services, setServices] = useState<AppServices>({
     sessionStore: null,
     controller: null,
+    assistantProfileRepository: null,
     error: null,
   });
   const [uiState, dispatch] = useReducer(uiReducer, initialUiState);
@@ -58,6 +61,7 @@ export function App({
       setServices({
         sessionStore: nextServices.sessionStore,
         controller: nextServices.controller,
+        assistantProfileRepository: nextServices.assistantProfileRepository,
         error: null,
       });
 
@@ -69,6 +73,7 @@ export function App({
       setServices({
         sessionStore: null,
         controller: null,
+        assistantProfileRepository: null,
         error: `Startup error: ${message}`,
       });
       return;
@@ -135,9 +140,11 @@ export function App({
 
   const handleSubmit = useSubmitHandler({
     activeSnapshot: snapshot,
+    assistantProfileRepository: services.assistantProfileRepository,
     controller: services.controller,
     dispatch,
     onExitRequested: onExitRequested ?? exit,
+    pendingProfileClearConfirmation: uiState.pendingProfileClearConfirmation,
     pendingResetConfirmation: uiState.pendingResetConfirmation,
     sessionStore,
     setSessions,
@@ -148,7 +155,7 @@ export function App({
     return <Text>{sanitizeSingleLineText(services.error, 240)}</Text>;
   }
 
-  if (!services.controller || !sessionStore) {
+  if (!services.controller || !services.assistantProfileRepository || !sessionStore) {
     return <Text>{uiState.statusMessage ? sanitizeSingleLineText(uiState.statusMessage, 240) : "Loading..."}</Text>;
   }
 

@@ -2,6 +2,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import type { AppConfig } from "../infra/config/load-config.js";
+import type { AssistantProfileRepository } from "../infra/repositories/assistant-profile-repository.js";
+import type { AssistantProfile } from "../types/assistant-profile.js";
 import type { MemoryRecord } from "../types/memory.js";
 import type { ProviderId } from "../providers/types.js";
 
@@ -18,25 +20,15 @@ interface PromptVariables {
 }
 
 export class PromptLoader {
-  constructor(private readonly config: AppConfig) {}
+  constructor(
+    private readonly config: AppConfig,
+    private readonly assistantProfileRepository: AssistantProfileRepository,
+  ) {}
 
   load(providerId: ProviderId, variables: PromptVariables): string {
-    const configuredProviderFile = this.config.prompts.providers[providerId];
-    if (configuredProviderFile) {
-      return renderTemplate(readPromptFile(configuredProviderFile), variables);
-    }
-
-    const configuredDefaultFile = this.config.prompts.defaultSystemFile;
-    if (configuredDefaultFile) {
-      return renderTemplate(readPromptFile(configuredDefaultFile), variables);
-    }
-
-    const builtInProviderTemplate = readBuiltInPromptFile(providerId);
-    if (builtInProviderTemplate) {
-      return renderTemplate(builtInProviderTemplate, variables);
-    }
-
-    return renderTemplate(readRequiredBuiltInPromptFile("default"), variables);
+    const promptBody = this.loadPromptBody(providerId, variables);
+    const assistantIdentity = renderAssistantIdentityBlock(this.assistantProfileRepository.get() ?? this.config.assistantProfile);
+    return assistantIdentity ? `${assistantIdentity}\n\n${promptBody}` : promptBody;
   }
 
   loadMemoryExtractionPrompt() {
@@ -55,6 +47,40 @@ export class PromptLoader {
 
     return template.trim().replaceAll("{{memoryLines}}", memoryLines);
   }
+
+  private loadPromptBody(providerId: ProviderId, variables: PromptVariables) {
+    const configuredProviderFile = this.config.prompts.providers[providerId];
+    if (configuredProviderFile) {
+      return renderTemplate(readPromptFile(configuredProviderFile), variables);
+    }
+
+    const configuredDefaultFile = this.config.prompts.defaultSystemFile;
+    if (configuredDefaultFile) {
+      return renderTemplate(readPromptFile(configuredDefaultFile), variables);
+    }
+
+    const builtInProviderTemplate = readBuiltInPromptFile(providerId);
+    if (builtInProviderTemplate) {
+      return renderTemplate(builtInProviderTemplate, variables);
+    }
+
+    return renderTemplate(readRequiredBuiltInPromptFile("default"), variables);
+  }
+}
+
+function renderAssistantIdentityBlock(profile: AssistantProfile | undefined) {
+  if (!profile) {
+    return "";
+  }
+
+  const identityLines = [
+    profile.name ? `- Name: ${profile.name}` : null,
+    profile.role ? `- Role: ${profile.role}` : null,
+    profile.selfReference ? `- Self-reference: ${profile.selfReference}` : null,
+    "- These fields describe the assistant, not the user.",
+  ].filter((line): line is string => Boolean(line));
+
+  return ["Assistant identity:", ...identityLines].join("\n");
 }
 
 function readPromptFile(filePath: string): string {

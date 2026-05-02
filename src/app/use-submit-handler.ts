@@ -2,6 +2,7 @@ import { useCallback, useRef, type Dispatch, type SetStateAction } from "react";
 import { handleAppCommand } from "./handle-app-command.js";
 import type { ChatController } from "../controller/chat-controller.js";
 import type { SessionSnapshot, SessionStore } from "../controller/session-store.js";
+import type { AssistantProfileRepository } from "../infra/repositories/assistant-profile-repository.js";
 import { parseSlashCommand } from "../controller/slash-commands.js";
 import type { ChatMessage } from "../types/chat.js";
 import type { SessionSummary } from "../types/session.js";
@@ -10,9 +11,11 @@ import type { UiAction } from "./ui-state.js";
 
 interface UseSubmitHandlerOptions {
   activeSnapshot: SessionSnapshot | null;
+  assistantProfileRepository: AssistantProfileRepository | null;
   controller: ChatController | null;
   dispatch: Dispatch<UiAction>;
   onExitRequested(): void;
+  pendingProfileClearConfirmation: boolean;
   pendingResetConfirmation: boolean;
   sessionStore: SessionStore | null;
   setSessions: Dispatch<SetStateAction<SessionSummary[]>>;
@@ -21,9 +24,11 @@ interface UseSubmitHandlerOptions {
 
 export function useSubmitHandler({
   activeSnapshot,
+  assistantProfileRepository,
   controller,
   dispatch,
   onExitRequested,
+  pendingProfileClearConfirmation,
   pendingResetConfirmation,
   sessionStore,
   setSessions,
@@ -32,7 +37,7 @@ export function useSubmitHandler({
   const submitInFlightRef = useRef(false);
 
   return useCallback(async (value: string) => {
-    if (!activeSnapshot || !controller || !sessionStore) {
+    if (!activeSnapshot || !controller || !sessionStore || !assistantProfileRepository) {
       return;
     }
 
@@ -47,8 +52,10 @@ export function useSubmitHandler({
       if (command) {
         await handleAppCommand({
           activeSnapshot,
+          assistantProfileRepository,
           command,
           dispatch,
+          pendingProfileClearConfirmation,
           pendingResetConfirmation,
           sessionStore,
           onExitRequested,
@@ -62,6 +69,7 @@ export function useSubmitHandler({
       dispatch({ type: "input/set", value: "" });
       dispatch({ type: "status/set", value: undefined });
       dispatch({ type: "reset-confirmation/set", value: false });
+      dispatch({ type: "profile-clear-confirmation/set", value: false });
       dispatch({ type: "streaming/set", value: true });
 
       let streamingCleared = false;
@@ -136,9 +144,11 @@ export function useSubmitHandler({
     }
   }, [
     activeSnapshot,
+    assistantProfileRepository,
     controller,
     dispatch,
     onExitRequested,
+    pendingProfileClearConfirmation,
     pendingResetConfirmation,
     sessionStore,
     setSessions,

@@ -4,6 +4,7 @@ import path from "node:path";
 import TOML from "toml";
 import { z } from "zod";
 import type { ProviderId } from "../../providers/types.js";
+import { assistantProfileRelativePath, assistantProfileSchema, type AssistantProfile } from "../../types/assistant-profile.js";
 
 const defaultHistoryMaxMessages = 24;
 
@@ -50,6 +51,7 @@ export interface AppConfig {
   deepseekApiKey?: string;
   prompts: PromptConfig;
   memory: MemoryConfig;
+  assistantProfile?: AssistantProfile;
 }
 
 function getConfigCandidates() {
@@ -86,6 +88,7 @@ function readTomlConfig(): { config: RawConfig; configDir?: string } {
 
 export function loadConfig(): AppConfig {
   const { config: fileConfig, configDir } = readTomlConfig();
+  const workspaceRoot = process.cwd();
   const historyMaxMessages = readPositiveInt(process.env.AI_COMPANION_HISTORY_MAX_MESSAGES)
     ?? fileConfig.history?.maxMessages
     ?? defaultHistoryMaxMessages;
@@ -96,7 +99,7 @@ export function loadConfig(): AppConfig {
     deepseekBaseUrl: process.env.DEEPSEEK_BASE_URL ?? "https://api.deepseek.com/v1",
     storagePath: process.env.AI_COMPANION_STORAGE_PATH ?? fileConfig.storagePath ?? path.join(homedir(), ".ai-companion"),
     historyMaxMessages,
-    workspaceRoot: process.cwd(),
+    workspaceRoot,
     deepseekApiKey: process.env.DEEPSEEK_API_KEY,
     prompts: {
       defaultSystemFile: resolveConfigPath(configDir, fileConfig.prompts?.defaultSystemFile),
@@ -115,7 +118,23 @@ export function loadConfig(): AppConfig {
         ?? fileConfig.memory?.autoWriteLowRisk
         ?? true,
     },
+    assistantProfile: readAssistantProfile(workspaceRoot),
   };
+}
+
+function readAssistantProfile(workspaceRoot: string) {
+  const filePath = path.join(workspaceRoot, assistantProfileRelativePath);
+  if (!existsSync(filePath)) {
+    return undefined;
+  }
+
+  try {
+    const parsed = JSON.parse(readFileSync(filePath, "utf8"));
+    return assistantProfileSchema.parse(parsed);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to parse assistant profile ${filePath}: ${message}`);
+  }
 }
 
 function readPositiveInt(value: string | undefined) {
