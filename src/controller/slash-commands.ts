@@ -3,6 +3,7 @@ export type SlashCommand =
   | { type: "sessions" }
   | { type: "switch"; target?: string }
   | { type: "memory"; target?: string }
+  | { type: "emotion"; target?: string }
   | { type: "profile"; target?: string }
   | { type: "reset"; target?: string }
   | { type: "help" }
@@ -49,6 +50,12 @@ export const SLASH_COMMAND_SPECS = [
     usage: "/memory",
     description: "choose a session, then view that session's memories",
     build: (target) => ({ type: "memory", target }),
+  },
+  {
+    name: "emotion",
+    usage: "/emotion | /emotion debug | /emotion reset",
+    description: "view, inspect, or reset the current session emotion state",
+    build: (target) => ({ type: "emotion", target }),
   },
   {
     name: "profile",

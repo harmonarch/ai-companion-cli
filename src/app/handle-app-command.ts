@@ -98,6 +98,37 @@ export async function handleAppCommand({
       dispatch({ type: "status/set", value: "Memory opened." });
       return;
     }
+    case "emotion": {
+      const snapshot = activeSnapshot ?? sessionStore.ensureSession();
+      if (!activeSnapshot) {
+        setSnapshot(snapshot);
+      }
+
+      const action = command.target?.trim().toLowerCase();
+      dispatch({ type: "reset-confirmation/set", value: false });
+      dispatch({ type: "profile-clear-confirmation/set", value: false });
+      dispatch({ type: "overlay/close" });
+
+      if (!action) {
+        dispatch({ type: "status/set", value: formatEmotionSummary(snapshot, false) });
+        return;
+      }
+
+      if (action === "debug") {
+        dispatch({ type: "status/set", value: formatEmotionSummary(snapshot, true) });
+        return;
+      }
+
+      if (action === "reset") {
+        const nextSnapshot = sessionStore.resetEmotion(snapshot.session.id);
+        setSnapshot(nextSnapshot);
+        dispatch({ type: "status/set", value: "Emotion state reset." });
+        return;
+      }
+
+      dispatch({ type: "status/set", value: "Usage: /emotion, /emotion debug, /emotion reset" });
+      return;
+    }
     case "profile": {
       dispatch({ type: "reset-confirmation/set", value: false });
       dispatch({ type: "overlay/close" });
@@ -214,6 +245,22 @@ export async function handleAppCommand({
     default:
       return;
   }
+}
+
+function formatEmotionSummary(snapshot: SessionSnapshot, debug: boolean) {
+  const state = snapshot.emotion;
+  if (!debug) {
+    return `Emotion: ${state.primary}.`;
+  }
+
+  return [
+    `Emotion: ${state.primary}`,
+    `intensity=${state.intensity.toFixed(2)}`,
+    `intimacy=${state.intimacy.toFixed(2)}`,
+    `boundary=${state.boundaryActive ? "on" : "off"}`,
+    `trigger=${state.lastTrigger ?? "none"}`,
+    `turnsSinceTrigger=${state.turnsSinceTrigger}`,
+  ].join(" | ");
 }
 
 function isAssistantProfileField(field: string | undefined): field is AssistantProfileField {

@@ -1,8 +1,10 @@
 import { ChatController } from "../controller/chat-controller.js";
+import { EmotionService } from "../controller/emotion-service.js";
 import { MemoryService } from "../controller/memory-service.js";
 import { SessionStore } from "../controller/session-store.js";
 import { loadConfig } from "../infra/config/load-config.js";
 import { AssistantProfileRepository } from "../infra/repositories/assistant-profile-repository.js";
+import { EmotionStateRepository } from "../infra/repositories/emotion-state-repository.js";
 import { MemoryAuditRepository } from "../infra/repositories/memory-audit-repository.js";
 import { MemoryCandidateRepository } from "../infra/repositories/memory-candidate-repository.js";
 import { MemoryRecordRepository } from "../infra/repositories/memory-record-repository.js";
@@ -29,6 +31,7 @@ export function createAppServices(): AppServiceBundle {
   const messageRepository = new MessageRepository(fileStore);
   const runRepository = new RunRepository(fileStore);
   const toolExecutionRepository = new ToolExecutionRepository(fileStore);
+  const emotionStateRepository = new EmotionStateRepository(fileStore);
   const scratchpadRepository = new SessionScratchpadRepository(fileStore);
   const candidateRepository = new MemoryCandidateRepository(fileStore);
   const memoryRecordRepository = new MemoryRecordRepository(fileStore);
@@ -48,12 +51,14 @@ export function createAppServices(): AppServiceBundle {
     memoryRecordRepository,
     memoryAuditRepository,
   );
+  const emotionService = new EmotionService(emotionStateRepository);
   const sessionStore = new SessionStore(
     sessionRepository,
     messageRepository,
     runRepository,
     toolExecutionRepository,
     memoryService,
+    emotionService,
     assistantProfileRepository,
     {
       provider: config.defaultProvider,
@@ -72,6 +77,7 @@ export function createAppServices(): AppServiceBundle {
     runRepository,
     toolExecutionRepository,
     memoryService,
+    emotionService,
   );
 
   return {

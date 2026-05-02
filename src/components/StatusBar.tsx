@@ -2,6 +2,7 @@ import React from "react";
 import { Box, Text } from "ink";
 import pc from "picocolors";
 import { sanitizeSingleLineText } from "../utils/sanitize-text.js";
+import type { EmotionPrimaryState } from "../types/emotion.js";
 import type { SessionRecord } from "../types/session.js";
 
 const modeLabels = {
@@ -16,10 +17,12 @@ const modeLabels = {
 export function StatusBar({
   session,
   mode,
+  emotion,
   statusMessage,
 }: {
   session: SessionRecord;
   mode: "ready" | "streaming" | "confirm" | "sessions" | "memory" | "help";
+  emotion: EmotionPrimaryState;
   statusMessage?: string;
 }) {
   const safeTitle = sanitizeSingleLineText(session.title, 80);
@@ -34,6 +37,8 @@ export function StatusBar({
       </Text>
       <Text>
         {pc.gray(modeLabels[mode])}
+        {pc.gray(" · ")}
+        {pc.cyan(`mood: ${emotion}`)}
         {safeStatusMessage ? `${pc.gray(" · ")}${pc.yellow(safeStatusMessage)}` : ""}
       </Text>
     </Box>

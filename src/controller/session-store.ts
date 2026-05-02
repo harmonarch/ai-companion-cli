@@ -4,6 +4,7 @@ import type { SessionRepository } from "../infra/repositories/session-repository
 import type { ToolExecutionRepository } from "../infra/repositories/tool-execution-repository.js";
 import type { AssistantProfileRepository } from "../infra/repositories/assistant-profile-repository.js";
 import type { ChatMessage } from "../types/chat.js";
+import type { EmotionState } from "../types/emotion.js";
 import type {
   MemoryDetailRecord,
   MemoryEvidenceKind,
@@ -13,6 +14,7 @@ import type {
 } from "../types/memory.js";
 import type { SessionRecord, SessionSummary } from "../types/session.js";
 import type { ToolExecutionRecord } from "../types/tool.js";
+import type { EmotionService } from "./emotion-service.js";
 import type { MemoryService } from "./memory-service.js";
 import { sanitizeSingleLineText } from "../utils/sanitize-text.js";
 
@@ -22,6 +24,7 @@ export interface SessionSnapshot {
   toolExecutions: ToolExecutionRecord[];
   memories: MemoryRecord[];
   memoryDetails: MemoryDetailRecord[];
+  emotion: EmotionState;
 }
 
 interface ParsedSourceRef {
@@ -42,6 +45,7 @@ export class SessionStore {
     private readonly runRepository: RunRepository,
     private readonly toolExecutionRepository: ToolExecutionRepository,
     private readonly memoryService: MemoryService,
+    private readonly emotionService: EmotionService,
     private readonly assistantProfileRepository: AssistantProfileRepository,
     private readonly defaults: { provider: string; model: string },
   ) {}
@@ -75,6 +79,7 @@ export class SessionStore {
       toolExecutions: [],
       memories,
       memoryDetails: memories.map((memory) => this.resolveMemoryDetail(memory, context)),
+      emotion: this.emotionService.getOrCreate(session.id),
     };
   }
 
@@ -93,10 +98,12 @@ export class SessionStore {
       toolExecutions: this.toolExecutionRepository.listBySession(sessionId),
       memories,
       memoryDetails: memories.map((memory) => this.resolveMemoryDetail(memory, context)),
+      emotion: this.emotionService.getOrCreate(sessionId),
     };
   }
 
   deleteSession(sessionId: string) {
+    this.emotionService.deleteSessionState(sessionId);
     this.memoryService.deleteSessionState(sessionId);
     this.runRepository.deleteBySession(sessionId);
     this.toolExecutionRepository.deleteBySession(sessionId);
@@ -105,6 +112,7 @@ export class SessionStore {
   }
 
   resetAll() {
+    this.emotionService.resetAll();
     this.memoryService.resetAll();
     this.assistantProfileRepository.clear();
     this.toolExecutionRepository.deleteAll();
@@ -128,6 +136,11 @@ export class SessionStore {
 
   renameSession(sessionId: string, title: string) {
     this.sessionRepository.updateTitle(sessionId, title);
+  }
+
+  resetEmotion(sessionId: string) {
+    this.emotionService.resetSession(sessionId);
+    return this.loadSession(sessionId);
   }
 
   private createResolutionContext(): ResolutionContext {

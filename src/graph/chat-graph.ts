@@ -29,11 +29,15 @@ export function buildGraph(model: ChatOpenAI, tools: unknown[]) {
     .compile();
 }
 
-export function buildGraphInput(messages: ChatMessage[], systemPrompt: string, memoryContext?: string) {
+export function buildGraphInput(messages: ChatMessage[], systemPrompt: string, memoryContext?: string, emotionContext?: string) {
   const history: BaseMessage[] = [new SystemMessage(systemPrompt)];
 
   if (memoryContext) {
     history.push(new SystemMessage(memoryContext));
+  }
+
+  if (emotionContext) {
+    history.push(new SystemMessage(emotionContext));
   }
 
   for (const message of messages) {
