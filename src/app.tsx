@@ -291,12 +291,6 @@ export function App({
 
   return (
     <Box flexDirection="column">
-      <StatusBar
-        session={activeSnapshot.session}
-        mode={mode}
-        emotion={activeSnapshot.emotion.primary}
-        statusMessage={uiState.statusMessage}
-      />
       <Box marginTop={1} flexDirection="column">
         {activeConfirmation ? (
           <Box flexDirection="column" marginBottom={1}>
@@ -352,6 +346,12 @@ export function App({
         />
         <HorizontalDivider />
       </Box>
+      <StatusBar
+        session={activeSnapshot.session}
+        mode={mode}
+        emotion={activeSnapshot.emotion.primary}
+        statusMessage={uiState.statusMessage}
+      />
     </Box>
   );
 }
