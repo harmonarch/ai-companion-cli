@@ -23,6 +23,7 @@ import { MemoryList } from "./components/MemoryList.js";
 import { PromptInput } from "./components/PromptInput.js";
 import { SessionList } from "./components/SessionList.js";
 import { StatusBar } from "./components/StatusBar.js";
+import { parseSlashCommand } from "./controller/slash-commands.js";
 import type { ChatController } from "./controller/chat-controller.js";
 import type { SessionSnapshot, SessionStore } from "./controller/session-store.js";
 import type { AssistantProfileRepository } from "./infra/repositories/assistant-profile-repository.js";
@@ -35,6 +36,20 @@ interface AppServices {
   assistantProfileRepository: AssistantProfileRepository | null;
   error: string | null;
 }
+
+interface PromptHistoryState {
+  draft: string;
+  index: number | null;
+  sessionId: string | null;
+  sessionMessages: Record<string, string[]>;
+}
+
+const initialPromptHistoryState: PromptHistoryState = {
+  draft: "",
+  index: null,
+  sessionId: null,
+  sessionMessages: {},
+};
 
 export function App({
   initialSessionId,
@@ -53,6 +68,7 @@ export function App({
   const [uiState, dispatch] = useReducer(uiReducer, initialUiState);
   const [snapshot, setSnapshot] = useState<SessionSnapshot | null>(null);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
+  const [promptHistory, setPromptHistory] = useState<PromptHistoryState>(initialPromptHistoryState);
   const sessionStore = services.sessionStore;
 
   useEffect(() => {
@@ -101,6 +117,10 @@ export function App({
   const activeConfirmation = getActiveConfirmation(uiState);
   const memoryOverlay = getMemoryOverlay(uiState);
   const sessionsOverlay = getSessionsOverlay(uiState);
+  const activeSessionId = snapshot?.session.id ?? null;
+  const promptHistoryEntries = activeSessionId
+    ? (promptHistory.sessionMessages[activeSessionId] ?? [])
+    : [];
 
   useEffect(() => {
     if (!memoryOverlay || !snapshot) {
@@ -150,6 +170,108 @@ export function App({
     setSessions,
     setSnapshot,
   });
+
+  useEffect(() => {
+    if (!activeSessionId) {
+      return;
+    }
+
+    setPromptHistory((current) => {
+      if (current.sessionId === activeSessionId && current.index === null) {
+        return current;
+      }
+
+      return {
+        ...current,
+        draft: "",
+        index: null,
+        sessionId: activeSessionId,
+      };
+    });
+  }, [activeSessionId]);
+
+  const handleHistoryUp = () => {
+    if (!activeSessionId || promptHistoryEntries.length === 0) {
+      return;
+    }
+
+    setPromptHistory((current) => {
+      const sessionMessages = current.sessionMessages;
+      const baseState = current.sessionId === activeSessionId
+        ? current
+        : { ...initialPromptHistoryState, sessionId: activeSessionId, sessionMessages };
+      const nextIndex = baseState.index === null
+        ? promptHistoryEntries.length - 1
+        : Math.max(0, baseState.index - 1);
+
+      dispatch({ type: "input/set", value: promptHistoryEntries[nextIndex] ?? "" });
+
+      return {
+        draft: baseState.index === null ? uiState.input : baseState.draft,
+        index: nextIndex,
+        sessionId: activeSessionId,
+        sessionMessages,
+      };
+    });
+  };
+
+  const handleHistoryDown = () => {
+    if (!activeSessionId) {
+      return;
+    }
+
+    setPromptHistory((current) => {
+      if (current.sessionId !== activeSessionId || current.index === null) {
+        return current.sessionId === activeSessionId
+          ? current
+          : { ...current, draft: "", index: null, sessionId: activeSessionId };
+      }
+
+      if (current.index >= promptHistoryEntries.length - 1) {
+        dispatch({ type: "input/set", value: current.draft });
+        return {
+          ...current,
+          draft: "",
+          index: null,
+          sessionId: activeSessionId,
+        };
+      }
+
+      const nextIndex = current.index + 1;
+      dispatch({ type: "input/set", value: promptHistoryEntries[nextIndex] ?? "" });
+      return {
+        ...current,
+        index: nextIndex,
+      };
+    });
+  };
+
+  const handlePromptSubmit = (next: string) => {
+    const isCommand = parseSlashCommand(next) !== null;
+
+    setPromptHistory((current) => {
+      const nextSessionId = activeSessionId ?? current.sessionId;
+      if (!nextSessionId) {
+        return current;
+      }
+
+      const sessionMessages = isCommand
+        ? current.sessionMessages
+        : {
+            ...current.sessionMessages,
+            [nextSessionId]: [...(current.sessionMessages[nextSessionId] ?? []), next],
+          };
+
+      return {
+        draft: "",
+        index: null,
+        sessionId: nextSessionId,
+        sessionMessages,
+      };
+    });
+
+    void handleSubmit(next);
+  };
 
   if (services.error) {
     return <Text>{sanitizeSingleLineText(services.error, 240)}</Text>;
@@ -217,9 +339,9 @@ export function App({
           onChange={(value) => {
             dispatch({ type: "input/set", value });
           }}
-          onSubmit={(next) => {
-            void handleSubmit(next);
-          }}
+          onSubmit={handlePromptSubmit}
+          onHistoryUp={handleHistoryUp}
+          onHistoryDown={handleHistoryDown}
           disabled={isPromptDisabled(uiState)}
           disabledReason={inputDisabledReason}
         />

@@ -13,12 +13,16 @@ export function PromptInput({
   value,
   onChange,
   onSubmit,
+  onHistoryUp,
+  onHistoryDown,
   disabled,
   disabledReason,
 }: {
   value: string;
   onChange: React.Dispatch<React.SetStateAction<string>>;
   onSubmit(value: string): void;
+  onHistoryUp?(): void;
+  onHistoryDown?(): void;
   disabled?: boolean;
   disabledReason?: "streaming" | "confirm" | "sessions" | "memory" | "help";
 }) {
@@ -154,6 +158,16 @@ export function PromptInput({
       return;
     }
 
+    if (key.upArrow) {
+      onHistoryUp?.();
+      return;
+    }
+
+    if (key.downArrow) {
+      onHistoryDown?.();
+      return;
+    }
+
     if (key.tab) {
       const completion = completeSlashCommand(value, cursorIndexRef.current);
       if (!completion) {
@@ -166,7 +180,7 @@ export function PromptInput({
       return;
     }
 
-    if (key.ctrl || key.meta || key.escape || key.upArrow || key.downArrow) {
+    if (key.ctrl || key.meta || key.escape) {
       return;
     }
 
