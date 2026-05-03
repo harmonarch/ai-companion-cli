@@ -7,6 +7,7 @@ import { httpFetchToolDefinition } from "./http-fetch.js";
 import { listDirToolDefinition } from "./list-dir.js";
 import { readFileToolDefinition } from "./read-file.js";
 import { searchTextToolDefinition } from "./search-text.js";
+import { localTimeToolDefinition } from "./local-time.js";
 
 interface ToolDefinition<TSchema extends ZodTypeAny = ZodTypeAny> extends ToolDescriptor {
   schema: TSchema;
@@ -31,6 +32,7 @@ const toolDefinitions: readonly ToolDefinition[] = [
   listDirToolDefinition,
   searchTextToolDefinition,
   httpFetchToolDefinition,
+  localTimeToolDefinition,
 ];
 
 export function createRuntimeTools(context: ToolRuntimeContext) {

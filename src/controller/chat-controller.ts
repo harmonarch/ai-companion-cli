@@ -248,7 +248,7 @@ export class ChatController {
     } catch (error) {
       buffer.close();
       const errorMessage = error instanceof Error ? error.message : String(error);
-      const persistedContent = assistantContent.length > 0 ? assistantContent : createTextMessageContent(`Error: ${errorMessage}`);
+      const persistedContent = sanitizeFailedAssistantContent(assistantContent, errorMessage);
       this.messageRepository.updateContent(session.id, assistantMessage.id, persistedContent, { error: errorMessage });
       handlers.onAssistantCompleted(assistantMessage.id, persistedContent);
       try {
@@ -280,3 +280,33 @@ function stableStringify(value: unknown): string {
 
   return JSON.stringify(value);
 }
+
+  function sanitizeFailedAssistantContent(content: MessageContent, errorMessage: string):MessageContent {
+    const toolCallIds = new Set(
+      content
+        .filter((part) => part.type === "tool_call")
+        .map((part) => part.callId),
+    );
+
+    const resolvedCallIds = new Set(
+      content
+        .filter((part) => part.type === "tool_result")
+        .map((part) => part.callId),
+    );
+
+    const safeParts = content.filter((part) => {
+      if (part.type === "tool_call") {
+        return resolvedCallIds.has(part.callId);
+      }
+
+      if (part.type === "tool_result") {
+        return toolCallIds.has(part.callId);
+      }
+
+      return true;
+    });
+
+    return safeParts.length > 0
+      ? safeParts
+      : createTextMessageContent(`Error: ${errorMessage}`);
+  }
