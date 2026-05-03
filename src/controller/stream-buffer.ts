@@ -1,17 +1,23 @@
+import type { ChatRuntimeEvent } from "../types/events.js";
+
+type TextDeltaEvent = Extract<ChatRuntimeEvent, { type: "text_delta" }>;
+
 export class StreamBuffer {
   private readonly intervalMs: number;
   private buffer = "";
+  private latestEvent: TextDeltaEvent | null = null;
   private timer?: NodeJS.Timeout;
 
   constructor(
-    private readonly onFlush: (chunk: string) => void,
+    private readonly onFlush: (event: TextDeltaEvent) => void,
     intervalMs = 40,
   ) {
     this.intervalMs = intervalMs;
   }
 
-  push(chunk: string) {
-    this.buffer += chunk;
+  push(event: TextDeltaEvent) {
+    this.buffer += event.text;
+    this.latestEvent = event;
     if (this.timer) {
       return;
     }
@@ -22,15 +28,19 @@ export class StreamBuffer {
   }
 
   flush() {
-    if (!this.buffer) {
+    if (!this.buffer || !this.latestEvent) {
       this.clearTimer();
       return;
     }
 
-    const chunk = this.buffer;
+    const event = {
+      ...this.latestEvent,
+      text: this.buffer,
+    } satisfies TextDeltaEvent;
     this.buffer = "";
+    this.latestEvent = null;
     this.clearTimer();
-    this.onFlush(chunk);
+    this.onFlush(event);
   }
 
   close() {

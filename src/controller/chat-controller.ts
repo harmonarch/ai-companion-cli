@@ -2,7 +2,7 @@ import type { AppConfig } from "../infra/config/load-config.js";
 import { MessageRepository } from "../infra/repositories/message-repository.js";
 import { RunRepository } from "../infra/repositories/run-repository.js";
 import type { ToolExecutionRepository } from "../infra/repositories/tool-execution-repository.js";
-import { buildGraph, buildGraphInput } from "../graph/chat-graph.js";
+import { buildGraph, buildGraphInput, streamCanonicalEvents } from "../graph/chat-graph.js";
 import type { PromptLoader } from "../prompts/loader.js";
 import type { ProviderDefinition, ProviderId, RuntimeToolCall } from "../providers/types.js";
 import { createRuntimeTools } from "../tools/index.js";
@@ -14,6 +14,7 @@ import {
   type ChatMessage,
   type MessageContent,
 } from "../types/chat.js";
+import type { ChatRuntimeEvent } from "../types/events.js";
 import type { SessionRecord } from "../types/session.js";
 import type { ToolConfirmationRequest, ToolExecutionRecord } from "../types/tool.js";
 import { selectHistory } from "./history-selection.js";
@@ -89,28 +90,66 @@ export class ChatController {
 
     let assistantContent: MessageContent = [];
     let assistantText = "";
-    let fallbackText = "";
     let firstTokenRecorded = false;
+    let failureMessage: string | null = null;
     const pendingToolCalls = new Map<string, RuntimeToolCall[]>();
     const recordToolCalls = (toolCalls: RuntimeToolCall[]) => {
       for (const toolCall of toolCalls) {
-        assistantContent = appendToolCallMessageContent(assistantContent, {
-          type: "tool_call",
-          callId: toolCall.callId,
-          toolName: toolCall.toolName,
-          input: toolCall.input,
-        });
         const key = createToolCallKey(toolCall.toolName, toolCall.input);
         pendingToolCalls.set(key, [...(pendingToolCalls.get(key) ?? []), toolCall]);
       }
     };
-    const buffer = new StreamBuffer((chunk) => {
-      assistantText += chunk;
-      assistantContent = appendTextMessageContent(assistantContent, chunk);
-      handlers.onAssistantChunk(assistantMessage.id, chunk);
+    const markFirstVisibleEvent = () => {
+      if (firstTokenRecorded) {
+        return;
+      }
+      this.runRepository.markFirstToken(run.id);
+      firstTokenRecorded = true;
+    };
+    const buffer = new StreamBuffer((event) => {
+      assistantText += event.text;
+      assistantContent = appendTextMessageContent(assistantContent, event.text);
+      handlers.onAssistantChunk(assistantMessage.id, event.text);
     });
+    const handleRuntimeEvent = (event: ChatRuntimeEvent) => {
+      switch (event.type) {
+        case "response_started":
+        case "usage_updated":
+          return;
+        case "text_delta":
+          markFirstVisibleEvent();
+          buffer.push(event);
+          return;
+        case "tool_call_recorded": {
+          markFirstVisibleEvent();
+          assistantContent = appendToolCallMessageContent(assistantContent, event.part);
+          recordToolCalls([{ callId: event.part.callId, toolName: event.part.toolName, input: event.part.input }]);
+          return;
+        }
+        case "tool_result_recorded":
+          markFirstVisibleEvent();
+          assistantContent = appendToolResultMessageContent(assistantContent, event.part);
+          return;
+        case "response_completed":
+          if (!assistantText && event.response.text) {
+            assistantText = event.response.text;
+            assistantContent = appendTextMessageContent(assistantContent, event.response.text);
+            handlers.onAssistantChunk(assistantMessage.id, event.response.text);
+          }
+          return;
+        case "response_failed":
+          failureMessage = event.error.message;
+          return;
+      }
+    };
 
     try {
+      const provider = this.providers[session.provider as ProviderId];
+      if (!provider) {
+        throw new Error(`Unsupported provider: ${session.provider}`);
+      }
+
+      const runtime = provider.createRuntime(this.config, session);
       const runtimeTools = createRuntimeTools({
         workspaceRoot: this.config.workspaceRoot,
         sessionId: session.id,
@@ -119,7 +158,14 @@ export class ChatController {
         toolExecutionRepository: this.toolExecutionRepository,
         onExecutionUpdate: handlers.onToolExecution,
         onToolResult(part) {
-          assistantContent = appendToolResultMessageContent(assistantContent, part);
+          handleRuntimeEvent({
+            type: "tool_result_recorded",
+            sessionId: session.id,
+            runId: run.id,
+            assistantMessageId: assistantMessage.id,
+            part,
+            timestamp: new Date().toISOString(),
+          });
         },
         requestConfirmation: handlers.requestConfirmation,
         resolveCall(toolName, toolInput) {
@@ -152,12 +198,6 @@ export class ChatController {
         },
       });
 
-      const provider = this.providers[session.provider as ProviderId];
-      if (!provider) {
-        throw new Error(`Unsupported provider: ${session.provider}`);
-      }
-
-      const runtime = provider.createRuntime(this.config, session);
       const graph = buildGraph(runtime, runtimeTools);
       const history = this.messageRepository.listBySession(session.id).filter((message) => message.id !== assistantMessage.id);
       const selectedHistory = selectHistory(history, this.config.historyMaxMessages);
@@ -167,46 +207,21 @@ export class ChatController {
         session,
       });
       const memoryContext = this.memoryService.retrieveForPrompt().context;
+      const graphInput = buildGraphInput(selectedHistory, systemPrompt, memoryContext, emotionContext);
 
-      for await (const event of graph.streamEvents(buildGraphInput(selectedHistory, systemPrompt, memoryContext, emotionContext), { version: "v2" })) {
-        switch (event.event) {
-          case "on_chat_model_stream": {
-            const text = runtime.extractText(event.data?.chunk);
-            if (text) {
-              if (!firstTokenRecorded) {
-                this.runRepository.markFirstToken(run.id);
-                firstTokenRecorded = true;
-              }
-              buffer.push(text);
-            }
-            break;
-          }
-          case "on_chat_model_end": {
-            const outputText = runtime.extractText(event.data?.output);
-            if (outputText) {
-              if (!firstTokenRecorded) {
-                this.runRepository.markFirstToken(run.id);
-                firstTokenRecorded = true;
-              }
-              fallbackText += outputText;
-            }
-
-            const toolCalls = runtime.extractToolCalls(event.data?.output);
-            if (toolCalls.length > 0) {
-              recordToolCalls(toolCalls);
-            }
-            break;
-          }
-          default:
-            break;
-        }
+      for await (const event of streamCanonicalEvents(graph, graphInput, runtime, {
+        sessionId: session.id,
+        runId: run.id,
+        assistantMessageId: assistantMessage.id,
+        provider: session.provider,
+        model: session.model,
+      })) {
+        handleRuntimeEvent(event);
       }
 
       buffer.close();
-      if (!assistantText && fallbackText) {
-        assistantText = fallbackText;
-        assistantContent = appendTextMessageContent(assistantContent, fallbackText);
-        handlers.onAssistantChunk(assistantMessage.id, fallbackText);
+      if (failureMessage) {
+        throw new Error(failureMessage);
       }
 
       this.messageRepository.updateContent(session.id, assistantMessage.id, assistantContent, {});

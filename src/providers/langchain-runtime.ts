@@ -1,6 +1,7 @@
 import { AIMessageChunk } from "@langchain/core/messages";
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import type { Runnable } from "@langchain/core/runnables";
+import type { CanonicalUsage } from "../types/events.js";
 import type { ProviderRuntime, RuntimeToolCall } from "./types.js";
 
 type InvokableModel = Pick<BaseChatModel, "invoke"> | Pick<Runnable, "invoke">;
@@ -30,6 +31,12 @@ export function createLangChainRuntime(model: ToolBindableModel): ProviderRuntim
     },
     extractToolCalls(value) {
       return extractLangChainToolCalls(value);
+    },
+    extractUsage(value) {
+      return extractLangChainUsage(value);
+    },
+    extractFinishReason(value) {
+      return extractLangChainFinishReason(value);
     },
   };
 }
@@ -79,6 +86,35 @@ function extractLangChainToolCalls(value: unknown): RuntimeToolCall[] {
   });
 }
 
+function extractLangChainUsage(value: unknown): CanonicalUsage | undefined {
+  const usage = readUsageMetadata(value);
+  if (!usage) {
+    return undefined;
+  }
+
+  return {
+    inputTokens: readOptionalNumber(usage.input_tokens),
+    outputTokens: readOptionalNumber(usage.output_tokens),
+    totalTokens: readOptionalNumber(usage.total_tokens),
+  };
+}
+
+function extractLangChainFinishReason(value: unknown): string | undefined {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+
+  const responseMetadata = "response_metadata" in value
+    ? (value as { response_metadata?: unknown }).response_metadata
+    : undefined;
+  if (!responseMetadata || typeof responseMetadata !== "object") {
+    return undefined;
+  }
+
+  const finishReason = (responseMetadata as { finish_reason?: unknown }).finish_reason;
+  return typeof finishReason === "string" && finishReason ? finishReason : undefined;
+}
+
 function readToolCalls(value: unknown): Array<{ id?: unknown; name?: unknown; args?: unknown }> {
   if (!value || typeof value !== "object") {
     return [];
@@ -110,4 +146,27 @@ function readToolCallInput(value: unknown) {
   }
 
   return value;
+}
+
+function readUsageMetadata(value: unknown): { input_tokens?: unknown; output_tokens?: unknown; total_tokens?: unknown } | undefined {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+
+  if ("usage_metadata" in value) {
+    const usageMetadata = (value as { usage_metadata?: unknown }).usage_metadata;
+    return usageMetadata && typeof usageMetadata === "object"
+      ? usageMetadata as { input_tokens?: unknown; output_tokens?: unknown; total_tokens?: unknown }
+      : undefined;
+  }
+
+  if ("content" in value) {
+    return readUsageMetadata((value as { content?: unknown }).content);
+  }
+
+  return undefined;
+}
+
+function readOptionalNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }

@@ -1,5 +1,6 @@
 import type { AppConfig, ProviderSettings } from "../infra/config/load-config.js";
 import type { PromptLoader } from "../prompts/loader.js";
+import type { CanonicalUsage } from "../types/events.js";
 import type { SessionRecord } from "../types/session.js";
 
 export type ProviderId = string;
@@ -28,6 +29,8 @@ export interface ProviderRuntime {
   hasToolCalls(message: unknown): boolean;
   extractText(value: unknown): string;
   extractToolCalls(value: unknown): RuntimeToolCall[];
+  extractUsage(value: unknown): CanonicalUsage | undefined;
+  extractFinishReason(value: unknown): string | undefined;
 }
 
 export interface ProviderDefinition {

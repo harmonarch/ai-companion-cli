@@ -1,8 +1,9 @@
 import { HumanMessage, AIMessage, SystemMessage, ToolMessage, type BaseMessage } from "@langchain/core/messages";
 import { END, MessagesAnnotation, START, StateGraph } from "@langchain/langgraph";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
-import type { ProviderRuntime } from "../providers/types.js";
-import { messageContentToPlainText, type ChatMessage, type MessageContent } from "../types/chat.js";
+import type { ProviderRuntime, RuntimeToolCall } from "../providers/types.js";
+import type { ChatRuntimeEvent } from "../types/events.js";
+import { messageContentToPlainText, type ChatMessage, type MessageContent, type ToolCallMessageContentPart } from "../types/chat.js";
 
 export function buildGraph(runtime: ProviderRuntime, tools: unknown[]) {
   const toolNode = new ToolNode(tools as never[]);
@@ -24,6 +25,130 @@ export function buildGraph(runtime: ProviderRuntime, tools: unknown[]) {
     )
     .addEdge("tools", "agent")
     .compile();
+}
+
+export async function* streamCanonicalEvents(
+  graph: ReturnType<typeof buildGraph>,
+  input: ReturnType<typeof buildGraphInput>,
+  runtime: ProviderRuntime,
+  context: {
+    sessionId: string;
+    runId: string;
+    assistantMessageId: string;
+    provider: string;
+    model: string;
+  },
+): AsyncGenerator<ChatRuntimeEvent> {
+  yield {
+    type: "response_started",
+    sessionId: context.sessionId,
+    runId: context.runId,
+    assistantMessageId: context.assistantMessageId,
+    provider: context.provider,
+    model: context.model,
+    timestamp: new Date().toISOString(),
+  };
+
+  let finalText = "";
+  const finalToolCalls: ToolCallMessageContentPart[] = [];
+  let finalUsage = undefined;
+  let finishReason = undefined;
+
+  try {
+    for await (const event of graph.streamEvents(input, { version: "v2" })) {
+      if (event.event === "on_chat_model_stream") {
+        const text = runtime.extractText(event.data?.chunk);
+        if (text) {
+          finalText += text;
+          yield {
+            type: "text_delta",
+            sessionId: context.sessionId,
+            runId: context.runId,
+            assistantMessageId: context.assistantMessageId,
+            text,
+            timestamp: new Date().toISOString(),
+          };
+        }
+
+        const usage = runtime.extractUsage(event.data?.chunk);
+        if (usage && hasUsageValues(usage)) {
+          finalUsage = usage;
+          yield {
+            type: "usage_updated",
+            sessionId: context.sessionId,
+            runId: context.runId,
+            assistantMessageId: context.assistantMessageId,
+            usage,
+            timestamp: new Date().toISOString(),
+          };
+        }
+
+        continue;
+      }
+
+      if (event.event !== "on_chat_model_end") {
+        continue;
+      }
+
+      const outputText = runtime.extractText(event.data?.output);
+      if (!finalText && outputText) {
+        finalText = outputText;
+      }
+
+      const toolCalls = runtime.extractToolCalls(event.data?.output);
+      for (const toolCall of toolCalls) {
+        const part = toToolCallPart(toolCall);
+        finalToolCalls.push(part);
+        yield {
+          type: "tool_call_recorded",
+          sessionId: context.sessionId,
+          runId: context.runId,
+          assistantMessageId: context.assistantMessageId,
+          part,
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      const usage = runtime.extractUsage(event.data?.output);
+      if (usage && hasUsageValues(usage)) {
+        finalUsage = usage;
+        yield {
+          type: "usage_updated",
+          sessionId: context.sessionId,
+          runId: context.runId,
+          assistantMessageId: context.assistantMessageId,
+          usage,
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      finishReason = runtime.extractFinishReason(event.data?.output) ?? finishReason;
+    }
+
+    yield {
+      type: "response_completed",
+      sessionId: context.sessionId,
+      runId: context.runId,
+      assistantMessageId: context.assistantMessageId,
+      response: {
+        text: finalText || undefined,
+        toolCalls: finalToolCalls.length > 0 ? finalToolCalls : undefined,
+        usage: finalUsage,
+        finishReason,
+      },
+      timestamp: new Date().toISOString(),
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    yield {
+      type: "response_failed",
+      sessionId: context.sessionId,
+      runId: context.runId,
+      assistantMessageId: context.assistantMessageId,
+      error: { message },
+      timestamp: new Date().toISOString(),
+    };
+  }
 }
 
 export function buildGraphInput(messages: ChatMessage[], systemPrompt: string, memoryContext?: string, emotionContext?: string) {
@@ -90,4 +215,17 @@ function buildAssistantHistory(content: MessageContent): BaseMessage[] {
   }
 
   return messages;
+}
+
+function toToolCallPart(toolCall: RuntimeToolCall): ToolCallMessageContentPart {
+  return {
+    type: "tool_call",
+    callId: toolCall.callId,
+    toolName: toolCall.toolName,
+    input: toolCall.input,
+  };
+}
+
+function hasUsageValues(usage: { inputTokens?: number; outputTokens?: number; totalTokens?: number }) {
+  return usage.inputTokens !== undefined || usage.outputTokens !== undefined || usage.totalTokens !== undefined;
 }
