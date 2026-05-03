@@ -15,7 +15,7 @@ import { SessionScratchpadRepository } from "../infra/repositories/session-scrat
 import { ToolExecutionRepository } from "../infra/repositories/tool-execution-repository.js";
 import { FileStore } from "../infra/storage/file-store.js";
 import { PromptLoader } from "../prompts/loader.js";
-import { deepseekProvider } from "../providers/deepseek-provider.js";
+import { getProviders, getProvider, listProviderIds } from "../providers/registry.js";
 
 export interface AppServiceBundle {
   sessionStore: SessionStore;
@@ -52,6 +52,11 @@ export function createAppServices(): AppServiceBundle {
     memoryAuditRepository,
   );
   const emotionService = new EmotionService(emotionStateRepository);
+  const defaultProvider = getProvider(config.defaultProvider);
+  if (!defaultProvider) {
+    throw new Error(`Unsupported default provider: ${config.defaultProvider}. Available providers: ${listProviderIds().join(", ")}`);
+  }
+
   const sessionStore = new SessionStore(
     sessionRepository,
     messageRepository,
@@ -62,15 +67,12 @@ export function createAppServices(): AppServiceBundle {
     assistantProfileRepository,
     {
       provider: config.defaultProvider,
-      model: config.defaultModel,
+      model: config.defaultModel || defaultProvider.defaultModel,
     },
   );
-  const providers = {
-    deepseek: deepseekProvider,
-  };
   const controller = new ChatController(
     config,
-    providers,
+    getProviders(),
     promptLoader,
     sessionStore,
     messageRepository,

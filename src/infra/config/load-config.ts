@@ -8,8 +8,11 @@ import { assistantProfileRelativePath, assistantProfileSchema, type AssistantPro
 
 const defaultHistoryMaxMessages = 24;
 
+const providerPromptSchema = z.record(z.string(), z.string().min(1));
+const providerSettingsSchema = z.record(z.string(), z.record(z.string(), z.unknown()));
+
 const rawConfigSchema = z.object({
-  defaultProvider: z.literal("deepseek").optional(),
+  defaultProvider: z.string().min(1).optional(),
   defaultModel: z.string().min(1).optional(),
   storagePath: z.string().min(1).optional(),
   history: z.object({
@@ -17,10 +20,9 @@ const rawConfigSchema = z.object({
   }).partial().optional(),
   prompts: z.object({
     defaultSystemFile: z.string().min(1).optional(),
-    providers: z.object({
-      deepseek: z.string().min(1).optional(),
-    }).partial().optional(),
+    providers: providerPromptSchema.optional(),
   }).partial().optional(),
+  providers: providerSettingsSchema.optional(),
   memory: z.object({
     enabled: z.boolean().optional(),
     userId: z.string().min(1).optional(),
@@ -29,6 +31,8 @@ const rawConfigSchema = z.object({
 }).partial();
 
 type RawConfig = z.infer<typeof rawConfigSchema>;
+
+export type ProviderSettings = Record<string, unknown>;
 
 export interface PromptConfig {
   defaultSystemFile?: string;
@@ -42,14 +46,13 @@ export interface MemoryConfig {
 }
 
 export interface AppConfig {
-  defaultProvider: "deepseek";
+  defaultProvider: ProviderId;
   defaultModel: string;
-  deepseekBaseUrl: string;
   storagePath: string;
   historyMaxMessages: number;
   workspaceRoot: string;
-  deepseekApiKey?: string;
   prompts: PromptConfig;
+  providerSettings: Record<string, ProviderSettings>;
   memory: MemoryConfig;
   assistantProfile?: AssistantProfile;
 }
@@ -94,19 +97,16 @@ export function loadConfig(): AppConfig {
     ?? defaultHistoryMaxMessages;
 
   return {
-    defaultProvider: "deepseek",
+    defaultProvider: process.env.AI_COMPANION_PROVIDER ?? fileConfig.defaultProvider ?? "deepseek",
     defaultModel: process.env.AI_COMPANION_MODEL ?? fileConfig.defaultModel ?? "deepseek-chat",
-    deepseekBaseUrl: process.env.DEEPSEEK_BASE_URL ?? "https://api.deepseek.com/v1",
     storagePath: process.env.AI_COMPANION_STORAGE_PATH ?? fileConfig.storagePath ?? path.join(homedir(), ".ai-companion"),
     historyMaxMessages,
     workspaceRoot,
-    deepseekApiKey: process.env.DEEPSEEK_API_KEY,
     prompts: {
       defaultSystemFile: resolveConfigPath(configDir, fileConfig.prompts?.defaultSystemFile),
-      providers: {
-        deepseek: resolveConfigPath(configDir, fileConfig.prompts?.providers?.deepseek),
-      },
+      providers: resolvePromptFiles(configDir, fileConfig.prompts?.providers),
     },
+    providerSettings: resolveProviderSettings(fileConfig),
     memory: {
       enabled: readBoolean(process.env.AI_COMPANION_MEMORY_ENABLED)
         ?? fileConfig.memory?.enabled
@@ -171,4 +171,31 @@ function resolveConfigPath(configDir: string | undefined, filePath: string | und
   }
 
   return path.resolve(configDir, filePath);
+}
+
+function resolvePromptFiles(
+  configDir: string | undefined,
+  providers: Record<string, string> | undefined,
+): Partial<Record<ProviderId, string>> {
+  if (!providers) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(providers).map(([providerId, filePath]) => [providerId, resolveConfigPath(configDir, filePath)]),
+  );
+}
+
+function resolveProviderSettings(fileConfig: RawConfig): Record<string, ProviderSettings> {
+  const configuredProviders = fileConfig.providers ?? {};
+  const deepseekSettings = {
+    ...(configuredProviders.deepseek ?? {}),
+    apiKey: process.env.DEEPSEEK_API_KEY ?? configuredProviders.deepseek?.apiKey,
+    baseUrl: process.env.DEEPSEEK_BASE_URL ?? configuredProviders.deepseek?.baseUrl,
+  };
+
+  return {
+    ...configuredProviders,
+    deepseek: deepseekSettings,
+  };
 }

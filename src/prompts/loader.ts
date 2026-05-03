@@ -7,11 +7,6 @@ import type { AssistantProfile } from "../types/assistant-profile.js";
 import type { MemoryRecord } from "../types/memory.js";
 import type { ProviderId } from "../providers/types.js";
 
-const builtInPromptFiles: Record<ProviderId | "default", string[]> = {
-  deepseek: resolveBuiltInPromptFiles("deepseek.system.md"),
-  default: resolveBuiltInPromptFiles("default.system.md"),
-};
-
 const builtInMemoryExtractionPromptFiles = resolveBuiltInPromptFiles("memory.extract.md");
 const builtInMemoryContextPromptFiles = resolveBuiltInPromptFiles("memory.context.md");
 
@@ -96,7 +91,7 @@ function renderTemplate(template: string, variables: PromptVariables): string {
 }
 
 function readBuiltInPromptFile(providerId: ProviderId | "default") {
-  for (const filePath of builtInPromptFiles[providerId]) {
+  for (const filePath of resolveBuiltInPromptFiles(`${providerId}.system.md`)) {
     if (existsSync(filePath)) {
       return readFileSync(filePath, "utf8").trim();
     }

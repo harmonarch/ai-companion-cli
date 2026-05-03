@@ -1,4 +1,4 @@
-import type { ModelCapabilities, ProviderId } from "./types.js";
+import type { ModelCapabilities } from "./types.js";
 
 const defaultCapabilities: ModelCapabilities = {
   supportsStreaming: true,
@@ -6,12 +6,10 @@ const defaultCapabilities: ModelCapabilities = {
   allowedTools: ["read_file", "list_dir", "search_text", "http_fetch"],
 };
 
-const matrix: Record<ProviderId, Record<string, ModelCapabilities>> = {
-  deepseek: {
-    "deepseek-chat": defaultCapabilities,
-  },
+const deepseekCapabilities: Record<string, ModelCapabilities> = {
+  "deepseek-chat": defaultCapabilities,
 };
 
-export function getModelCapabilities(provider: ProviderId, model: string): ModelCapabilities {
-  return matrix[provider]?.[model] ?? defaultCapabilities;
+export function getDeepseekModelCapabilities(model: string): ModelCapabilities {
+  return deepseekCapabilities[model] ?? defaultCapabilities;
 }
