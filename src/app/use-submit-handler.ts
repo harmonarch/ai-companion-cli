@@ -4,7 +4,11 @@ import type { ChatController } from "../controller/chat-controller.js";
 import type { SessionSnapshot, SessionStore } from "../controller/session-store.js";
 import type { AssistantProfileRepository } from "../infra/repositories/assistant-profile-repository.js";
 import { parseSlashCommand } from "../controller/slash-commands.js";
-import type { ChatMessage } from "../types/chat.js";
+import {
+  appendTextMessageContent,
+  createTextMessageContent,
+  type ChatMessage,
+} from "../types/chat.js";
 import type { SessionSummary } from "../types/session.js";
 import type { ToolConfirmationRequest, ToolExecutionRecord } from "../types/tool.js";
 import type { UiAction } from "./ui-state.js";
@@ -98,7 +102,9 @@ export function useSubmitHandler({
               return {
                 ...current,
                 messages: current.messages.map((message) =>
-                  message.id === messageId ? { ...message, content: message.content + chunk } : message,
+                  message.id === messageId
+                    ? { ...message, content: appendTextMessageContent(message.content, chunk) }
+                    : message,
                 ),
               };
             });
@@ -116,7 +122,7 @@ export function useSubmitHandler({
               return {
                 ...nextSnapshot,
                 messages: nextSnapshot.messages.map((message) =>
-                  message.id === messageId ? { ...message, content } : message,
+                  message.id === messageId ? { ...message, content: createTextMessageContent(content) } : message,
                 ),
               };
             });

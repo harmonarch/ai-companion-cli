@@ -3,7 +3,10 @@ import type { RunRepository } from "../infra/repositories/run-repository.js";
 import type { SessionRepository } from "../infra/repositories/session-repository.js";
 import type { ToolExecutionRepository } from "../infra/repositories/tool-execution-repository.js";
 import type { AssistantProfileRepository } from "../infra/repositories/assistant-profile-repository.js";
-import type { ChatMessage } from "../types/chat.js";
+import {
+  messageContentToPlainText,
+  type ChatMessage,
+} from "../types/chat.js";
 import type { EmotionState } from "../types/emotion.js";
 import type {
   MemoryDetailRecord,
@@ -94,7 +97,7 @@ export class SessionStore {
 
     return {
       session,
-      messages: this.messageRepository.listBySession(sessionId).filter((message) => message.content.length > 0),
+      messages: this.messageRepository.listBySession(sessionId).filter((message) => messageContentToPlainText(message.content).length > 0),
       toolExecutions: this.toolExecutionRepository.listBySession(sessionId),
       memories,
       memoryDetails: memories.map((memory) => this.resolveMemoryDetail(memory, context)),
@@ -305,7 +308,7 @@ export class SessionStore {
     return {
       id: message.id,
       role: message.role,
-      preview: sanitizeSingleLineText(message.content, 100),
+      preview: sanitizeSingleLineText(messageContentToPlainText(message.content), 100),
       createdAt: message.createdAt,
     };
   }

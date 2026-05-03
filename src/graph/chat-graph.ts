@@ -2,7 +2,7 @@ import { HumanMessage, AIMessage, SystemMessage, type BaseMessage } from "@langc
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { END, MessagesAnnotation, START, StateGraph } from "@langchain/langgraph";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
-import type { ChatMessage } from "../types/chat.js";
+import { messageContentToPlainText, type ChatMessage } from "../types/chat.js";
 
 export function buildGraph(model: BaseChatModel, tools: unknown[]) {
   const modelWithTools = tools.length > 0 ? model.bindTools?.(tools as never[]) ?? model : model;
@@ -42,12 +42,12 @@ export function buildGraphInput(messages: ChatMessage[], systemPrompt: string, m
 
   for (const message of messages) {
     if (message.role === "user") {
-      history.push(new HumanMessage(message.content));
+      history.push(new HumanMessage(messageContentToPlainText(message.content)));
       continue;
     }
 
     if (message.role === "assistant") {
-      history.push(new AIMessage(message.content));
+      history.push(new AIMessage(messageContentToPlainText(message.content)));
     }
   }
 

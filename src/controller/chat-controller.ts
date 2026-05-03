@@ -7,7 +7,10 @@ import { buildGraph, buildGraphInput } from "../graph/chat-graph.js";
 import type { PromptLoader } from "../prompts/loader.js";
 import type { ProviderDefinition, ProviderId } from "../providers/types.js";
 import { createRuntimeTools } from "../tools/index.js";
-import type { ChatMessage } from "../types/chat.js";
+import {
+  createTextMessageContent,
+  type ChatMessage,
+} from "../types/chat.js";
 import type { SessionRecord } from "../types/session.js";
 import type { ToolConfirmationRequest, ToolExecutionRecord } from "../types/tool.js";
 import { selectHistory } from "./history-selection.js";
@@ -50,7 +53,7 @@ export class ChatController {
       sessionId: session.id,
       role: "user",
       kind: "user",
-      content: trimmed,
+      content: createTextMessageContent(trimmed),
     });
     handlers.onUserMessage(userMessage);
 
@@ -69,7 +72,7 @@ export class ChatController {
       sessionId: session.id,
       role: "assistant",
       kind: "assistant",
-      content: "",
+      content: [],
     });
     handlers.onAssistantMessage(assistantMessage);
 
@@ -151,12 +154,12 @@ export class ChatController {
         handlers.onAssistantChunk(assistantMessage.id, fallbackText);
       }
 
-      this.messageRepository.updateContent(session.id, assistantMessage.id, assistantText, {});
+      this.messageRepository.updateContent(session.id, assistantMessage.id, createTextMessageContent(assistantText), {});
       handlers.onAssistantReady(assistantMessage.id, assistantText);
       this.emotionService.transitionOnAssistantTurn(session.id, assistantText);
       const completedAssistantMessage = {
         ...assistantMessage,
-        content: assistantText,
+        content: createTextMessageContent(assistantText),
       };
       await this.memoryService.processCompletedTurn({
         session,
@@ -176,7 +179,7 @@ export class ChatController {
       buffer.close();
       const errorMessage = error instanceof Error ? error.message : String(error);
       const persistedContent = assistantText || `Error: ${errorMessage}`;
-      this.messageRepository.updateContent(session.id, assistantMessage.id, persistedContent, { error: errorMessage });
+      this.messageRepository.updateContent(session.id, assistantMessage.id, createTextMessageContent(persistedContent), { error: errorMessage });
       handlers.onAssistantCompleted(assistantMessage.id, persistedContent);
       try {
         this.runRepository.markFailed(run.id, errorMessage);

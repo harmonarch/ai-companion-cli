@@ -1,6 +1,13 @@
 import crypto from "node:crypto";
 import { FileStore } from "../storage/file-store.js";
-import type { ChatMessage, MessageKind, MessageRole } from "../../types/chat.js";
+import {
+  createTextMessageContent,
+  type ChatMessage,
+  type MessageContent,
+  type MessageContentPart,
+  type MessageKind,
+  type MessageRole,
+} from "../../types/chat.js";
 
 function compareMessages(a: ChatMessage, b: ChatMessage) {
   return a.createdAt.localeCompare(b.createdAt);
@@ -15,7 +22,7 @@ export class MessageRepository {
     sessionId: string;
     role: MessageRole;
     kind: MessageKind;
-    content: string;
+    content: MessageContent;
     metadata?: Record<string, unknown>;
   }) {
     const message: ChatMessage = {
@@ -39,7 +46,7 @@ export class MessageRepository {
       .sort(compareMessages);
   }
 
-  updateContent(sessionId: string, messageId: string, content: string, metadata?: Record<string, unknown>) {
+  updateContent(sessionId: string, messageId: string, content: MessageContent, metadata?: Record<string, unknown>) {
     const messages = this.listBySession(sessionId);
     const next = messages.map((message) => (
       message.id === messageId
@@ -75,7 +82,7 @@ function parseChatMessage(value: unknown): ChatMessage {
     sessionId: readString(record.sessionId, "message.sessionId"),
     role,
     kind,
-    content: readString(record.content, "message.content"),
+    content: readMessageContent(record),
     createdAt: readString(record.createdAt, "message.createdAt"),
     metadata: readObject(record.metadata, "message.metadata"),
   };
@@ -93,6 +100,35 @@ function readMessageKind(value: unknown): MessageKind {
     return value;
   }
   throw new Error("Invalid message kind");
+}
+
+function readMessageContent(record: Record<string, unknown>): MessageContent {
+  if (typeof record.content === "string") {
+    return createTextMessageContent(record.content);
+  }
+
+  const parts = record.content;
+  if (!Array.isArray(parts)) {
+    throw new Error("Invalid message.content");
+  }
+
+  return parts.map(readMessageContentPart);
+}
+
+function readMessageContentPart(value: unknown): MessageContentPart {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Invalid message.content part");
+  }
+
+  const record = value as Record<string, unknown>;
+  if (record.type === "text") {
+    return {
+      type: "text",
+      text: readString(record.text, "message.content.text"),
+    };
+  }
+
+  throw new Error("Invalid message.content part type");
 }
 
 function readString(value: unknown, field: string) {

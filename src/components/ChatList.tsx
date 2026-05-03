@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { Box, Text } from "ink";
 import pc from "picocolors";
-import type { ChatMessage } from "../types/chat.js";
+import { messageContentToPlainText, type ChatMessage } from "../types/chat.js";
 import type { ToolExecutionRecord } from "../types/tool.js";
 import { sanitizeMultilineText, sanitizeSingleLineText } from "../utils/sanitize-text.js";
 import { InlineToolState } from "./InlineToolState.js";
@@ -47,7 +47,7 @@ export function ChatList({
             : sanitizeSingleLineText(String(message.role), 20);
         const executions = toolExecutionsByMessage.get(message.id) ?? [];
         const isLastMessage = index === messages.length - 1;
-        const safeContent = sanitizeMultilineText(message.content, 8000);
+        const safeContent = sanitizeMultilineText(messageContentToPlainText(message.content), 8000);
 
         return (
           <Box key={message.id} flexDirection="column" marginBottom={isLastMessage ? 0 : 1}>

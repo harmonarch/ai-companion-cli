@@ -1,6 +1,6 @@
 import type { PromptLoader } from "../prompts/loader.js";
 import type { SessionRecord } from "../types/session.js";
-import type { ChatMessage } from "../types/chat.js";
+import { messageContentToPlainText, type ChatMessage } from "../types/chat.js";
 import type { ToolExecutionRecord } from "../types/tool.js";
 import type { RunRecord } from "../types/run.js";
 import type {
@@ -334,7 +334,7 @@ export class MemoryService {
   }
 
   private async extractCandidates(input: ProcessTurnInput & { scratchpad: SessionScratchpad | null }) {
-    const normalized = normalizeText(input.userMessage.content);
+    const normalized = normalizeText(messageContentToPlainText(input.userMessage.content));
     if (!normalized) {
       return [];
     }
@@ -519,8 +519,8 @@ function buildExtractionPrompt({
     "- Put short-lived items in event or pattern, not profile-style preference.",
     "",
     "Evidence:",
-    `User message (${userMessage.createdAt}): ${normalizeText(userMessage.content)}`,
-    `Assistant message (${assistantMessage.createdAt}): ${normalizeText(assistantMessage.content)}`,
+    `User message (${userMessage.createdAt}): ${normalizeText(messageContentToPlainText(userMessage.content))}`,
+    `Assistant message (${assistantMessage.createdAt}): ${normalizeText(messageContentToPlainText(assistantMessage.content))}`,
     `Run id: ${run.id}`,
     `Scratchpad: ${JSON.stringify(scratchpad ?? null)}`,
     `Tool summaries: ${JSON.stringify(toolExecutions.map((execution) => execution.summary))}`,
