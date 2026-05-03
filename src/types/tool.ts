@@ -12,6 +12,7 @@ export interface ToolExecutionRecord {
   sessionId: string;
   runId?: string;
   messageId?: string;
+  callId?: string;
   toolName: string;
   riskLevel: ToolRiskLevel;
   status: ToolExecutionStatus;

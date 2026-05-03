@@ -128,6 +128,25 @@ function readMessageContentPart(value: unknown): MessageContentPart {
     };
   }
 
+  if (record.type === "tool_call") {
+    return {
+      type: "tool_call",
+      callId: readString(record.callId, "message.content.callId"),
+      toolName: readString(record.toolName, "message.content.toolName"),
+      input: readUnknown(record.input, "message.content.input"),
+    };
+  }
+
+  if (record.type === "tool_result") {
+    return {
+      type: "tool_result",
+      callId: readString(record.callId, "message.content.callId"),
+      toolName: readString(record.toolName, "message.content.toolName"),
+      output: readUnknown(record.output, "message.content.output"),
+      isError: readOptionalBoolean(record.isError, "message.content.isError"),
+    };
+  }
+
   throw new Error("Invalid message.content part type");
 }
 
@@ -135,6 +154,26 @@ function readString(value: unknown, field: string) {
   if (typeof value !== "string") {
     throw new Error(`Invalid ${field}`);
   }
+  return value;
+}
+
+function readOptionalBoolean(value: unknown, field: string) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value !== "boolean") {
+    throw new Error(`Invalid ${field}`);
+  }
+
+  return value;
+}
+
+function readUnknown(value: unknown, field: string) {
+  if (value === undefined) {
+    throw new Error(`Invalid ${field}`);
+  }
+
   return value;
 }
 

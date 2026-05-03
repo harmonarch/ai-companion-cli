@@ -4,11 +4,15 @@ import { RunRepository } from "../infra/repositories/run-repository.js";
 import type { ToolExecutionRepository } from "../infra/repositories/tool-execution-repository.js";
 import { buildGraph, buildGraphInput } from "../graph/chat-graph.js";
 import type { PromptLoader } from "../prompts/loader.js";
-import type { ProviderDefinition, ProviderId } from "../providers/types.js";
+import type { ProviderDefinition, ProviderId, RuntimeToolCall } from "../providers/types.js";
 import { createRuntimeTools } from "../tools/index.js";
 import {
+  appendTextMessageContent,
+  appendToolCallMessageContent,
+  appendToolResultMessageContent,
   createTextMessageContent,
   type ChatMessage,
+  type MessageContent,
 } from "../types/chat.js";
 import type { SessionRecord } from "../types/session.js";
 import type { ToolConfirmationRequest, ToolExecutionRecord } from "../types/tool.js";
@@ -23,7 +27,7 @@ interface SendMessageHandlers {
   onAssistantMessage(message: ChatMessage): void;
   onAssistantChunk(messageId: string, chunk: string): void;
   onAssistantReady(messageId: string, content: string): void;
-  onAssistantCompleted(messageId: string, content: string): void;
+  onAssistantCompleted(messageId: string, content: MessageContent): void;
   onToolExecution(execution: ToolExecutionRecord): void;
   onSessionUpdated(session: SessionRecord): void;
   requestConfirmation(request: ToolConfirmationRequest): Promise<boolean>;
@@ -83,11 +87,26 @@ export class ChatController {
       model: session.model,
     });
 
+    let assistantContent: MessageContent = [];
     let assistantText = "";
     let fallbackText = "";
     let firstTokenRecorded = false;
+    const pendingToolCalls = new Map<string, RuntimeToolCall[]>();
+    const recordToolCalls = (toolCalls: RuntimeToolCall[]) => {
+      for (const toolCall of toolCalls) {
+        assistantContent = appendToolCallMessageContent(assistantContent, {
+          type: "tool_call",
+          callId: toolCall.callId,
+          toolName: toolCall.toolName,
+          input: toolCall.input,
+        });
+        const key = createToolCallKey(toolCall.toolName, toolCall.input);
+        pendingToolCalls.set(key, [...(pendingToolCalls.get(key) ?? []), toolCall]);
+      }
+    };
     const buffer = new StreamBuffer((chunk) => {
       assistantText += chunk;
+      assistantContent = appendTextMessageContent(assistantContent, chunk);
       handlers.onAssistantChunk(assistantMessage.id, chunk);
     });
 
@@ -99,7 +118,38 @@ export class ChatController {
         messageId: assistantMessage.id,
         toolExecutionRepository: this.toolExecutionRepository,
         onExecutionUpdate: handlers.onToolExecution,
+        onToolResult(part) {
+          assistantContent = appendToolResultMessageContent(assistantContent, part);
+        },
         requestConfirmation: handlers.requestConfirmation,
+        resolveCall(toolName, toolInput) {
+          const key = createToolCallKey(toolName, toolInput);
+          const pending = pendingToolCalls.get(key);
+          if (pending?.length) {
+            const nextCall = pending[0];
+            if (nextCall) {
+              const rest = pending.slice(1);
+              if (rest.length > 0) {
+                pendingToolCalls.set(key, rest);
+              } else {
+                pendingToolCalls.delete(key);
+              }
+              return {
+                type: "tool_call",
+                callId: nextCall.callId,
+                toolName: nextCall.toolName,
+                input: nextCall.input,
+              };
+            }
+          }
+
+          return {
+            type: "tool_call",
+            callId: `${toolName}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+            toolName,
+            input: toolInput,
+          };
+        },
       });
 
       const provider = this.providers[session.provider as ProviderId];
@@ -140,6 +190,11 @@ export class ChatController {
               }
               fallbackText += outputText;
             }
+
+            const toolCalls = runtime.extractToolCalls(event.data?.output);
+            if (toolCalls.length > 0) {
+              recordToolCalls(toolCalls);
+            }
             break;
           }
           default:
@@ -150,15 +205,16 @@ export class ChatController {
       buffer.close();
       if (!assistantText && fallbackText) {
         assistantText = fallbackText;
+        assistantContent = appendTextMessageContent(assistantContent, fallbackText);
         handlers.onAssistantChunk(assistantMessage.id, fallbackText);
       }
 
-      this.messageRepository.updateContent(session.id, assistantMessage.id, createTextMessageContent(assistantText), {});
+      this.messageRepository.updateContent(session.id, assistantMessage.id, assistantContent, {});
       handlers.onAssistantReady(assistantMessage.id, assistantText);
       this.emotionService.transitionOnAssistantTurn(session.id, assistantText);
       const completedAssistantMessage = {
         ...assistantMessage,
-        content: createTextMessageContent(assistantText),
+        content: assistantContent,
       };
       await this.memoryService.processCompletedTurn({
         session,
@@ -172,13 +228,13 @@ export class ChatController {
         },
       });
       this.sessionStore.touchSession(session.id);
-      handlers.onAssistantCompleted(assistantMessage.id, assistantText);
+      handlers.onAssistantCompleted(assistantMessage.id, assistantContent);
       this.runRepository.markCompleted(run.id);
     } catch (error) {
       buffer.close();
       const errorMessage = error instanceof Error ? error.message : String(error);
-      const persistedContent = assistantText || `Error: ${errorMessage}`;
-      this.messageRepository.updateContent(session.id, assistantMessage.id, createTextMessageContent(persistedContent), { error: errorMessage });
+      const persistedContent = assistantContent.length > 0 ? assistantContent : createTextMessageContent(`Error: ${errorMessage}`);
+      this.messageRepository.updateContent(session.id, assistantMessage.id, persistedContent, { error: errorMessage });
       handlers.onAssistantCompleted(assistantMessage.id, persistedContent);
       try {
         this.runRepository.markFailed(run.id, errorMessage);
@@ -189,4 +245,23 @@ export class ChatController {
       throw error;
     }
   }
+}
+
+function createToolCallKey(toolName: string, input: unknown) {
+  return `${toolName}:${stableStringify(input)}`;
+}
+
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringify).join(",")}]`;
+  }
+
+  if (value && typeof value === "object") {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, nested]) => `${JSON.stringify(key)}:${stableStringify(nested)}`)
+      .join(",")}}`;
+  }
+
+  return JSON.stringify(value);
 }

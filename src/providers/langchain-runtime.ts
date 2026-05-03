@@ -1,7 +1,7 @@
 import { AIMessageChunk } from "@langchain/core/messages";
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import type { Runnable } from "@langchain/core/runnables";
-import type { ProviderRuntime } from "./types.js";
+import type { ProviderRuntime, RuntimeToolCall } from "./types.js";
 
 type InvokableModel = Pick<BaseChatModel, "invoke"> | Pick<Runnable, "invoke">;
 type ToolBindableModel = InvokableModel & {
@@ -27,6 +27,9 @@ export function createLangChainRuntime(model: ToolBindableModel): ProviderRuntim
     },
     extractText(value) {
       return extractLangChainText(value);
+    },
+    extractToolCalls(value) {
+      return extractLangChainToolCalls(value);
     },
   };
 }
@@ -60,4 +63,51 @@ function extractLangChainText(value: unknown): string {
   }
 
   return "";
+}
+
+function extractLangChainToolCalls(value: unknown): RuntimeToolCall[] {
+  const toolCalls = readToolCalls(value);
+  return toolCalls.flatMap((toolCall, index) => {
+    const callId = typeof toolCall.id === "string" && toolCall.id ? toolCall.id : `tool-call-${index + 1}`;
+    const toolName = typeof toolCall.name === "string" ? toolCall.name : undefined;
+    const input = readToolCallInput(toolCall.args);
+    if (!toolName || input === undefined) {
+      return [];
+    }
+
+    return [{ callId, toolName, input }];
+  });
+}
+
+function readToolCalls(value: unknown): Array<{ id?: unknown; name?: unknown; args?: unknown }> {
+  if (!value || typeof value !== "object") {
+    return [];
+  }
+
+  if ("tool_calls" in value) {
+    const toolCalls = (value as { tool_calls?: unknown }).tool_calls;
+    return Array.isArray(toolCalls) ? toolCalls as Array<{ id?: unknown; name?: unknown; args?: unknown }> : [];
+  }
+
+  if ("content" in value) {
+    return readToolCalls((value as { content?: unknown }).content);
+  }
+
+  return [];
+}
+
+function readToolCallInput(value: unknown) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value) as unknown;
+    } catch {
+      return value;
+    }
+  }
+
+  return value;
 }

@@ -16,11 +16,18 @@ export interface SystemPromptContext {
   session: SessionRecord;
 }
 
+export interface RuntimeToolCall {
+  callId: string;
+  toolName: string;
+  input: unknown;
+}
+
 export interface ProviderRuntime {
   invoke(input: unknown): Promise<unknown>;
   bindTools(tools: unknown[]): ProviderRuntime;
   hasToolCalls(message: unknown): boolean;
   extractText(value: unknown): string;
+  extractToolCalls(value: unknown): RuntimeToolCall[];
 }
 
 export interface ProviderDefinition {

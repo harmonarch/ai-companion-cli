@@ -1,6 +1,7 @@
 import { tool } from "@langchain/core/tools";
 import type { ZodTypeAny, infer as Infer } from "zod";
 import type { ToolExecutionRepository } from "../infra/repositories/tool-execution-repository.js";
+import type { ToolCallMessageContentPart, ToolResultMessageContentPart } from "../types/chat.js";
 import type { ToolConfirmationRequest, ToolDescriptor, ToolExecutionRecord } from "../types/tool.js";
 import { httpFetchToolDefinition } from "./http-fetch.js";
 import { listDirToolDefinition } from "./list-dir.js";
@@ -20,7 +21,9 @@ export interface ToolRuntimeContext {
   messageId: string;
   toolExecutionRepository: ToolExecutionRepository;
   onExecutionUpdate(execution: ToolExecutionRecord): void;
+  onToolResult(part: ToolResultMessageContentPart): void;
   requestConfirmation(request: ToolConfirmationRequest): Promise<boolean>;
+  resolveCall(toolName: string, input: Record<string, unknown>): ToolCallMessageContentPart;
 }
 
 const toolDefinitions: readonly ToolDefinition[] = [
@@ -48,11 +51,13 @@ async function runTool(
   input: Record<string, unknown>,
   context: ToolRuntimeContext,
 ) {
+  const toolCall = context.resolveCall(definition.name, input);
   const initialStatus = definition.riskLevel === "medium" ? "pending" : "running";
   let execution = context.toolExecutionRepository.create({
     sessionId: context.sessionId,
     runId: context.runId,
     messageId: context.messageId,
+    callId: toolCall.callId,
     toolName: definition.name,
     riskLevel: definition.riskLevel,
     status: initialStatus,
@@ -72,13 +77,21 @@ async function runTool(
     });
 
     if (!approved) {
+      const deniedOutput = { denied: true, message: "User denied this tool execution." };
       execution = context.toolExecutionRepository.update(execution.id, {
         status: "denied",
         summary: `${execution.summary} (denied)`,
-        output: { denied: true },
+        output: deniedOutput,
       });
       context.onExecutionUpdate(execution);
-      return JSON.stringify({ denied: true, message: "User denied this tool execution." }, null, 2);
+      context.onToolResult({
+        type: "tool_result",
+        callId: toolCall.callId,
+        toolName: definition.name,
+        output: deniedOutput,
+        isError: true,
+      });
+      return JSON.stringify(deniedOutput, null, 2);
     }
 
     execution = context.toolExecutionRepository.update(execution.id, {
@@ -97,15 +110,29 @@ async function runTool(
       output,
     });
     context.onExecutionUpdate(execution);
+    context.onToolResult({
+      type: "tool_result",
+      callId: toolCall.callId,
+      toolName: definition.name,
+      output,
+    });
     return JSON.stringify(output, null, 2);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    const output = { error: message };
     execution = context.toolExecutionRepository.update(execution.id, {
       status: "failed",
       summary: `${execution.summary} (failed)`,
-      output: { error: message },
+      output,
     });
     context.onExecutionUpdate(execution);
+    context.onToolResult({
+      type: "tool_result",
+      callId: toolCall.callId,
+      toolName: definition.name,
+      output,
+      isError: true,
+    });
     throw error;
   }
 }

@@ -8,7 +8,22 @@ export interface TextMessageContentPart {
   text: string;
 }
 
-export type MessageContentPart = TextMessageContentPart;
+export interface ToolCallMessageContentPart {
+  type: "tool_call";
+  callId: string;
+  toolName: string;
+  input: unknown;
+}
+
+export interface ToolResultMessageContentPart {
+  type: "tool_result";
+  callId: string;
+  toolName: string;
+  output: unknown;
+  isError?: boolean;
+}
+
+export type MessageContentPart = TextMessageContentPart | ToolCallMessageContentPart | ToolResultMessageContentPart;
 export type MessageContent = MessageContentPart[];
 
 export interface ChatMessage {
@@ -48,6 +63,20 @@ export function appendTextMessageContent(content: MessageContent, text: string):
   }
 
   return [...content, { type: "text", text }];
+}
+
+export function appendToolCallMessageContent(
+  content: MessageContent,
+  part: ToolCallMessageContentPart,
+): MessageContent {
+  return [...content, part];
+}
+
+export function appendToolResultMessageContent(
+  content: MessageContent,
+  part: ToolResultMessageContentPart,
+): MessageContent {
+  return [...content, part];
 }
 
 export function messageContentToPlainText(content: MessageContent): string {

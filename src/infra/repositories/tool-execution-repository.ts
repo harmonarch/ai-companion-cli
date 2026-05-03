@@ -85,6 +85,7 @@ function parseToolExecutionRecord(value: unknown): ToolExecutionRecord {
     sessionId: readString(record.sessionId, "toolExecution.sessionId"),
     runId: readOptionalString(record.runId, "toolExecution.runId"),
     messageId: readOptionalString(record.messageId, "toolExecution.messageId"),
+    callId: readOptionalString(record.callId, "toolExecution.callId"),
     toolName: readString(record.toolName, "toolExecution.toolName"),
     riskLevel: readRiskLevel(record.riskLevel),
     status: readToolExecutionStatus(record.status),

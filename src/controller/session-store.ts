@@ -97,7 +97,7 @@ export class SessionStore {
 
     return {
       session,
-      messages: this.messageRepository.listBySession(sessionId).filter((message) => messageContentToPlainText(message.content).length > 0),
+      messages: this.messageRepository.listBySession(sessionId).filter((message) => message.content.length > 0),
       toolExecutions: this.toolExecutionRepository.listBySession(sessionId),
       memories,
       memoryDetails: memories.map((memory) => this.resolveMemoryDetail(memory, context)),

@@ -6,8 +6,8 @@ import type { AssistantProfileRepository } from "../infra/repositories/assistant
 import { parseSlashCommand } from "../controller/slash-commands.js";
 import {
   appendTextMessageContent,
-  createTextMessageContent,
   type ChatMessage,
+  type MessageContent,
 } from "../types/chat.js";
 import type { SessionSummary } from "../types/session.js";
 import type { ToolConfirmationRequest, ToolExecutionRecord } from "../types/tool.js";
@@ -122,7 +122,7 @@ export function useSubmitHandler({
               return {
                 ...nextSnapshot,
                 messages: nextSnapshot.messages.map((message) =>
-                  message.id === messageId ? { ...message, content: createTextMessageContent(content) } : message,
+                  message.id === messageId ? { ...message, content } : message,
                 ),
               };
             });
