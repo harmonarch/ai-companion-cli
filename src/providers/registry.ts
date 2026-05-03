@@ -1,5 +1,5 @@
-import { deepseekProvider } from "./deepseek-provider.js";
-import type { ProviderDefinition, ProviderId } from "./types.js";
+import { deepseekProvider } from "#src/providers/deepseek-provider.js";
+import type { ProviderDefinition, ProviderId } from "#src/providers/types.js";
 
 export const providerRegistry: Record<ProviderId, ProviderDefinition> = {
   [deepseekProvider.id]: deepseekProvider,

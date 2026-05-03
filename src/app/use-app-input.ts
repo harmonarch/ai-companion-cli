@@ -1,9 +1,9 @@
 import { useInput, type Key } from "ink";
 import type { Dispatch, SetStateAction } from "react";
-import type { SessionSnapshot, SessionStore } from "../controller/session-store.js";
-import type { MemoryRecord } from "../types/memory.js";
-import type { SessionSummary } from "../types/session.js";
-import type { UiAction, UiState, MemoryEditState, PendingConfirmation } from "./ui-state.js";
+import type { SessionSnapshot, SessionStore } from "#src/controller/session-store.js";
+import type { MemoryRecord } from "#src/types/memory.js";
+import type { SessionSummary } from "#src/types/session.js";
+import type { UiAction, UiState, MemoryEditState, PendingConfirmation } from "#src/app/ui-state.js";
 
 interface UseAppInputOptions {
   activeConfirmation: PendingConfirmation | null;

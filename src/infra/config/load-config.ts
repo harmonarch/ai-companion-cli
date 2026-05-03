@@ -3,8 +3,8 @@ import { homedir } from "node:os";
 import path from "node:path";
 import TOML from "toml";
 import { z } from "zod";
-import type { ProviderId } from "../../providers/types.js";
-import { assistantProfileRelativePath, assistantProfileSchema, type AssistantProfile } from "../../types/assistant-profile.js";
+import type { ProviderId } from "#src/providers/types.js";
+import { assistantProfileRelativePath, assistantProfileSchema, type AssistantProfile } from "#src/types/assistant-profile.js";
 
 const defaultHistoryMaxMessages = 24;
 

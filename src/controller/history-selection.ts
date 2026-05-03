@@ -1,4 +1,4 @@
-import type { ChatMessage } from "../types/chat.js";
+import type { ChatMessage } from "#src/types/chat.js";
 
 export function selectHistory(messages: ChatMessage[], maxMessages: number) {
   if (messages.length <= maxMessages) {

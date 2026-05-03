@@ -1,11 +1,11 @@
-import type { AppConfig } from "../infra/config/load-config.js";
-import { MessageRepository } from "../infra/repositories/message-repository.js";
-import { RunRepository } from "../infra/repositories/run-repository.js";
-import type { ToolExecutionRepository } from "../infra/repositories/tool-execution-repository.js";
-import { buildGraph, buildGraphInput, streamCanonicalEvents } from "../graph/chat-graph.js";
-import type { PromptLoader } from "../prompts/loader.js";
-import type { ProviderDefinition, ProviderId, RuntimeToolCall } from "../providers/types.js";
-import { createRuntimeTools } from "../tools/index.js";
+import type { AppConfig } from "#src/infra/config/load-config.js";
+import { MessageRepository } from "#src/infra/repositories/message-repository.js";
+import { RunRepository } from "#src/infra/repositories/run-repository.js";
+import type { ToolExecutionRepository } from "#src/infra/repositories/tool-execution-repository.js";
+import { buildGraph, buildGraphInput, streamCanonicalEvents } from "#src/graph/chat-graph.js";
+import type { PromptLoader } from "#src/prompts/loader.js";
+import type { ProviderDefinition, ProviderId, RuntimeToolCall } from "#src/providers/types.js";
+import { createRuntimeTools } from "#src/tools/index.js";
 import {
   appendTextMessageContent,
   appendToolCallMessageContent,
@@ -13,15 +13,15 @@ import {
   createTextMessageContent,
   type ChatMessage,
   type MessageContent,
-} from "../types/chat.js";
-import type { ChatRuntimeEvent } from "../types/events.js";
-import type { SessionRecord } from "../types/session.js";
-import type { ToolConfirmationRequest, ToolExecutionRecord } from "../types/tool.js";
-import { selectHistory } from "./history-selection.js";
-import type { EmotionService } from "./emotion-service.js";
-import type { MemoryService } from "./memory-service.js";
-import { StreamBuffer } from "./stream-buffer.js";
-import type { SessionStore } from "./session-store.js";
+} from "#src/types/chat.js";
+import type { ChatRuntimeEvent } from "#src/types/events.js";
+import type { SessionRecord } from "#src/types/session.js";
+import type { ToolConfirmationRequest, ToolExecutionRecord } from "#src/types/tool.js";
+import { selectHistory } from "#src/controller/history-selection.js";
+import type { EmotionService } from "#src/controller/emotion-service.js";
+import type { MemoryService } from "#src/controller/memory-service.js";
+import { StreamBuffer } from "#src/controller/stream-buffer.js";
+import type { SessionStore } from "#src/controller/session-store.js";
 
 interface SendMessageHandlers {
   onUserMessage(message: ChatMessage): void;

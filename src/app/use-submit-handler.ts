@@ -1,17 +1,17 @@
 import { useCallback, useRef, type Dispatch, type SetStateAction } from "react";
-import { handleAppCommand } from "./handle-app-command.js";
-import type { ChatController } from "../controller/chat-controller.js";
-import type { SessionSnapshot, SessionStore } from "../controller/session-store.js";
-import type { AssistantProfileRepository } from "../infra/repositories/assistant-profile-repository.js";
-import { parseSlashCommand } from "../controller/slash-commands.js";
+import { handleAppCommand } from "#src/app/handle-app-command.js";
+import type { ChatController } from "#src/controller/chat-controller.js";
+import type { SessionSnapshot, SessionStore } from "#src/controller/session-store.js";
+import type { AssistantProfileRepository } from "#src/infra/repositories/assistant-profile-repository.js";
+import { parseSlashCommand } from "#src/controller/slash-commands.js";
 import {
   appendTextMessageContent,
   type ChatMessage,
   type MessageContent,
-} from "../types/chat.js";
-import type { SessionSummary } from "../types/session.js";
-import type { ToolConfirmationRequest, ToolExecutionRecord } from "../types/tool.js";
-import type { UiAction } from "./ui-state.js";
+} from "#src/types/chat.js";
+import type { SessionSummary } from "#src/types/session.js";
+import type { ToolConfirmationRequest, ToolExecutionRecord } from "#src/types/tool.js";
+import type { UiAction } from "#src/app/ui-state.js";
 
 interface UseSubmitHandlerOptions {
   activeSnapshot: SessionSnapshot | null;

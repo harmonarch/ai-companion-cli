@@ -1,5 +1,5 @@
-import type { SessionSnapshot, SessionStore } from "../controller/session-store.js";
-import type { SessionSummary } from "../types/session.js";
+import type { SessionSnapshot, SessionStore } from "#src/controller/session-store.js";
+import type { SessionSummary } from "#src/types/session.js";
 
 export interface InitialSessionResolution {
   snapshot?: SessionSnapshot;

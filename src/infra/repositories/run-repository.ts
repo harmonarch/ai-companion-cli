@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
-import { FileStore } from "../storage/file-store.js";
-import type { RunRecord, RunStatus } from "../../types/run.js";
+import { FileStore } from "#src/infra/storage/file-store.js";
+import type { RunRecord, RunStatus } from "#src/types/run.js";
 
 export class RunRepository {
   constructor(private readonly store: FileStore) {

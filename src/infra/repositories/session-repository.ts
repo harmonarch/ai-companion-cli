@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
-import { FileStore } from "../storage/file-store.js";
-import type { ChatMessage } from "../../types/chat.js";
-import type { SessionRecord, SessionSummary } from "../../types/session.js";
+import { FileStore } from "#src/infra/storage/file-store.js";
+import type { ChatMessage } from "#src/types/chat.js";
+import type { SessionRecord, SessionSummary } from "#src/types/session.js";
 
 function compareSessions(a: SessionRecord, b: SessionRecord) {
   return b.updatedAt.localeCompare(a.updatedAt);

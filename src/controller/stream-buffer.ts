@@ -1,4 +1,4 @@
-import type { ChatRuntimeEvent } from "../types/events.js";
+import type { ChatRuntimeEvent } from "#src/types/events.js";
 
 type TextDeltaEvent = Extract<ChatRuntimeEvent, { type: "text_delta" }>;
 

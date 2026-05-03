@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
-import { FileStore } from "../storage/file-store.js";
-import type { MemoryAuditAction, MemoryAuditEvent, MemoryAuditTargetType, MemoryScope } from "../../types/memory.js";
+import { FileStore } from "#src/infra/storage/file-store.js";
+import type { MemoryAuditAction, MemoryAuditEvent, MemoryAuditTargetType, MemoryScope } from "#src/types/memory.js";
 
 export class MemoryAuditRepository {
   constructor(private readonly store: FileStore) {

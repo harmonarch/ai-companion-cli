@@ -1,8 +1,8 @@
 import React, { useEffect, useReducer, useState } from "react";
 import { Box, Text, useApp } from "ink";
 import pc from "picocolors";
-import { createAppServices } from "./app/create-app-services.js";
-import { resolveInitialSession } from "./app/resolve-initial-session.js";
+import { createAppServices } from "#src/app/create-app-services.js";
+import { resolveInitialSession } from "#src/app/resolve-initial-session.js";
 import {
   getActiveConfirmation,
   getMemoryOverlay,
@@ -13,22 +13,22 @@ import {
   isPanelVisible,
   isPromptDisabled,
   uiReducer,
-} from "./app/ui-state.js";
-import { useAppInput } from "./app/use-app-input.js";
-import { useSubmitHandler } from "./app/use-submit-handler.js";
-import { ChatList } from "./components/ChatList.js";
-import { HelpList } from "./components/HelpList.js";
-import { HorizontalDivider } from "./components/HorizontalDivider.js";
-import { MemoryList } from "./components/MemoryList.js";
-import { PromptInput } from "./components/PromptInput.js";
-import { SessionList } from "./components/SessionList.js";
-import { StatusBar } from "./components/StatusBar.js";
-import { parseSlashCommand } from "./controller/slash-commands.js";
-import type { ChatController } from "./controller/chat-controller.js";
-import type { SessionSnapshot, SessionStore } from "./controller/session-store.js";
-import type { AssistantProfileRepository } from "./infra/repositories/assistant-profile-repository.js";
-import type { SessionSummary } from "./types/session.js";
-import { sanitizeSingleLineText } from "./utils/sanitize-text.js";
+} from "#src/app/ui-state.js";
+import { useAppInput } from "#src/app/use-app-input.js";
+import { useSubmitHandler } from "#src/app/use-submit-handler.js";
+import { ChatList } from "#src/components/ChatList.js";
+import { HelpList } from "#src/components/HelpList.js";
+import { HorizontalDivider } from "#src/components/HorizontalDivider.js";
+import { MemoryList } from "#src/components/MemoryList.js";
+import { PromptInput } from "#src/components/PromptInput.js";
+import { SessionList } from "#src/components/SessionList.js";
+import { StatusBar } from "#src/components/StatusBar.js";
+import { parseSlashCommand } from "#src/controller/slash-commands.js";
+import type { ChatController } from "#src/controller/chat-controller.js";
+import type { SessionSnapshot, SessionStore } from "#src/controller/session-store.js";
+import type { AssistantProfileRepository } from "#src/infra/repositories/assistant-profile-repository.js";
+import type { SessionSummary } from "#src/types/session.js";
+import { sanitizeSingleLineText } from "#src/utils/sanitize-text.js";
 
 interface AppServices {
   sessionStore: SessionStore | null;

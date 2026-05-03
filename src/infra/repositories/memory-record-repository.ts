@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
-import { FileStore } from "../storage/file-store.js";
-import type { MemoryRecord, MemoryRecordStatus, MemoryScope, MemoryType } from "../../types/memory.js";
+import { FileStore } from "#src/infra/storage/file-store.js";
+import type { MemoryRecord, MemoryRecordStatus, MemoryScope, MemoryType } from "#src/types/memory.js";
 
 export class MemoryRecordRepository {
   constructor(private readonly store: FileStore) {

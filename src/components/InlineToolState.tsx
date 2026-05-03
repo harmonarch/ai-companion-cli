@@ -1,8 +1,8 @@
 import React from "react";
 import { Box, Text } from "ink";
 import pc from "picocolors";
-import type { ToolExecutionRecord, ToolExecutionStatus } from "../types/tool.js";
-import { sanitizeSingleLineText } from "../utils/sanitize-text.js";
+import type { ToolExecutionRecord, ToolExecutionStatus } from "#src/types/tool.js";
+import { sanitizeSingleLineText } from "#src/utils/sanitize-text.js";
 
 const statusLabels: Record<ToolExecutionStatus, string> = {
   pending: "pending",

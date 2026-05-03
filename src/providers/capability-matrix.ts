@@ -1,4 +1,4 @@
-import type { ModelCapabilities } from "./types.js";
+import type { ModelCapabilities } from "#src/providers/types.js";
 
 const defaultCapabilities: ModelCapabilities = {
   supportsStreaming: true,

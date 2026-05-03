@@ -1,5 +1,5 @@
-import type { EmotionPromptContext, EmotionPrimaryState, EmotionState, EmotionTransitionReason } from "../types/emotion.js";
-import { EmotionStateRepository } from "../infra/repositories/emotion-state-repository.js";
+import type { EmotionPromptContext, EmotionPrimaryState, EmotionState, EmotionTransitionReason } from "#src/types/emotion.js";
+import { EmotionStateRepository } from "#src/infra/repositories/emotion-state-repository.js";
 
 const ANGRY_THRESHOLD = 0.35;
 const TURN_DECAY = 0.08;

@@ -1,9 +1,9 @@
 import React from "react";
 import { Box, Text } from "ink";
 import pc from "picocolors";
-import { sanitizeSingleLineText } from "../utils/sanitize-text.js";
-import type { EmotionPrimaryState } from "../types/emotion.js";
-import type { SessionRecord } from "../types/session.js";
+import { sanitizeSingleLineText } from "#src/utils/sanitize-text.js";
+import type { EmotionPrimaryState } from "#src/types/emotion.js";
+import type { SessionRecord } from "#src/types/session.js";
 
 const modeLabels = {
   ready: "ready",

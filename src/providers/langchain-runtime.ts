@@ -1,8 +1,8 @@
 import { AIMessageChunk } from "@langchain/core/messages";
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import type { Runnable } from "@langchain/core/runnables";
-import type { CanonicalUsage } from "../types/events.js";
-import type { ProviderRuntime, RuntimeToolCall } from "./types.js";
+import type { CanonicalUsage } from "#src/types/events.js";
+import type { ProviderRuntime, RuntimeToolCall } from "#src/providers/types.js";
 
 type InvokableModel = Pick<BaseChatModel, "invoke"> | Pick<Runnable, "invoke">;
 type ToolBindableModel = InvokableModel & {

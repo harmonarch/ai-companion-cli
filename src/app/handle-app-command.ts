@@ -1,10 +1,10 @@
 import type { Dispatch, SetStateAction } from "react";
-import type { SessionSnapshot, SessionStore } from "../controller/session-store.js";
-import type { SlashCommand } from "../controller/slash-commands.js";
-import type { AssistantProfileRepository } from "../infra/repositories/assistant-profile-repository.js";
-import type { AssistantProfileField } from "../types/assistant-profile.js";
-import type { SessionSummary } from "../types/session.js";
-import type { UiAction } from "./ui-state.js";
+import type { SessionSnapshot, SessionStore } from "#src/controller/session-store.js";
+import type { SlashCommand } from "#src/controller/slash-commands.js";
+import type { AssistantProfileRepository } from "#src/infra/repositories/assistant-profile-repository.js";
+import type { AssistantProfileField } from "#src/types/assistant-profile.js";
+import type { SessionSummary } from "#src/types/session.js";
+import type { UiAction } from "#src/app/ui-state.js";
 
 interface HandleAppCommandOptions {
   activeSnapshot: SessionSnapshot | null;

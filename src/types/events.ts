@@ -2,7 +2,7 @@ import type {
   MessageContent,
   ToolCallMessageContentPart,
   ToolResultMessageContentPart,
-} from "./chat.js";
+} from "#src/types/chat.js";
 
 interface RuntimeEventEnvelope {
   sessionId: string;

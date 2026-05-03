@@ -5,7 +5,7 @@ import {
   assistantProfileSchema,
   type AssistantProfile,
   type AssistantProfileField,
-} from "../../types/assistant-profile.js";
+} from "#src/types/assistant-profile.js";
 
 export class AssistantProfileRepository {
   private readonly filePath: string;

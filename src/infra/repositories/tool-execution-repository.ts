@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
-import { FileStore } from "../storage/file-store.js";
-import type { ToolExecutionRecord, ToolExecutionStatus, ToolRiskLevel } from "../../types/tool.js";
+import { FileStore } from "#src/infra/storage/file-store.js";
+import type { ToolExecutionRecord, ToolExecutionStatus, ToolRiskLevel } from "#src/types/tool.js";
 
 function compareExecutions(a: ToolExecutionRecord, b: ToolExecutionRecord) {
   return a.createdAt.localeCompare(b.createdAt);

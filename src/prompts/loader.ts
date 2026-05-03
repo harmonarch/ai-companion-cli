@@ -1,11 +1,11 @@
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import type { AppConfig } from "../infra/config/load-config.js";
-import type { AssistantProfileRepository } from "../infra/repositories/assistant-profile-repository.js";
-import type { AssistantProfile } from "../types/assistant-profile.js";
-import type { MemoryRecord } from "../types/memory.js";
-import type { ProviderId } from "../providers/types.js";
+import type { AppConfig } from "#src/infra/config/load-config.js";
+import type { AssistantProfileRepository } from "#src/infra/repositories/assistant-profile-repository.js";
+import type { AssistantProfile } from "#src/types/assistant-profile.js";
+import type { MemoryRecord } from "#src/types/memory.js";
+import type { ProviderId } from "#src/providers/types.js";
 
 const builtInMemoryExtractionPromptFiles = resolveBuiltInPromptFiles("memory.extract.md");
 const builtInMemoryContextPromptFiles = resolveBuiltInPromptFiles("memory.context.md");

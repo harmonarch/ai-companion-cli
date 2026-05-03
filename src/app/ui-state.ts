@@ -1,5 +1,5 @@
 import type { SetStateAction } from "react";
-import type { ToolConfirmationRequest } from "../types/tool.js";
+import type { ToolConfirmationRequest } from "#src/types/tool.js";
 
 export interface PendingConfirmation {
   request: ToolConfirmationRequest;

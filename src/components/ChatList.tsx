@@ -1,11 +1,11 @@
 import React, { useMemo } from "react";
 import { Box, Text } from "ink";
 import pc from "picocolors";
-import { messageContentToPlainText, type ChatMessage } from "../types/chat.js";
-import type { ToolExecutionRecord } from "../types/tool.js";
-import { sanitizeMultilineText, sanitizeSingleLineText } from "../utils/sanitize-text.js";
-import { InlineToolState } from "./InlineToolState.js";
-import { MarkdownText } from "./MarkdownText.js";
+import { messageContentToPlainText, type ChatMessage } from "#src/types/chat.js";
+import type { ToolExecutionRecord } from "#src/types/tool.js";
+import { sanitizeMultilineText, sanitizeSingleLineText } from "#src/utils/sanitize-text.js";
+import { InlineToolState } from "#src/components/InlineToolState.js";
+import { MarkdownText } from "#src/components/MarkdownText.js";
 
 export function ChatList({
   messages,

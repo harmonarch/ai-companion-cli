@@ -1,7 +1,7 @@
-import type { AppConfig, ProviderSettings } from "../infra/config/load-config.js";
-import type { PromptLoader } from "../prompts/loader.js";
-import type { CanonicalUsage } from "../types/events.js";
-import type { SessionRecord } from "../types/session.js";
+import type { AppConfig, ProviderSettings } from "#src/infra/config/load-config.js";
+import type { PromptLoader } from "#src/prompts/loader.js";
+import type { CanonicalUsage } from "#src/types/events.js";
+import type { SessionRecord } from "#src/types/session.js";
 
 export type ProviderId = string;
 

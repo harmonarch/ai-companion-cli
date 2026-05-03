@@ -1,4 +1,4 @@
-import type { ToolExecutionRecord } from "./tool.js";
+import type { ToolExecutionRecord } from "#src/types/tool.js";
 
 export type MessageRole = "user" | "assistant" | "system" | "tool";
 export type MessageKind = MessageRole;

@@ -1,8 +1,8 @@
-import type { PromptLoader } from "../prompts/loader.js";
-import type { SessionRecord } from "../types/session.js";
-import { messageContentToPlainText, type ChatMessage } from "../types/chat.js";
-import type { ToolExecutionRecord } from "../types/tool.js";
-import type { RunRecord } from "../types/run.js";
+import type { PromptLoader } from "#src/prompts/loader.js";
+import type { SessionRecord } from "#src/types/session.js";
+import { messageContentToPlainText, type ChatMessage } from "#src/types/chat.js";
+import type { ToolExecutionRecord } from "#src/types/tool.js";
+import type { RunRecord } from "#src/types/run.js";
 import type {
   MemoryCandidate,
   MemoryKind,
@@ -10,11 +10,11 @@ import type {
   MemoryScope,
   MemoryType,
   SessionScratchpad,
-} from "../types/memory.js";
-import { SessionScratchpadRepository } from "../infra/repositories/session-scratchpad-repository.js";
-import { MemoryCandidateRepository } from "../infra/repositories/memory-candidate-repository.js";
-import { MemoryRecordRepository } from "../infra/repositories/memory-record-repository.js";
-import { MemoryAuditRepository } from "../infra/repositories/memory-audit-repository.js";
+} from "#src/types/memory.js";
+import { SessionScratchpadRepository } from "#src/infra/repositories/session-scratchpad-repository.js";
+import { MemoryCandidateRepository } from "#src/infra/repositories/memory-candidate-repository.js";
+import { MemoryRecordRepository } from "#src/infra/repositories/memory-record-repository.js";
+import { MemoryAuditRepository } from "#src/infra/repositories/memory-audit-repository.js";
 
 interface MemoryServiceConfig {
   enabled: boolean;

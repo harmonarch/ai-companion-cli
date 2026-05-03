@@ -1,10 +1,10 @@
 import { ChatOpenAI } from "@langchain/openai";
-import type { AppConfig } from "../infra/config/load-config.js";
-import type { SessionRecord } from "../types/session.js";
-import { getDeepseekModelCapabilities } from "./capability-matrix.js";
-import { createLangChainRuntime } from "./langchain-runtime.js";
-import { readProviderSettings } from "./types.js";
-import type { ProviderDefinition } from "./types.js";
+import type { AppConfig } from "#src/infra/config/load-config.js";
+import type { SessionRecord } from "#src/types/session.js";
+import { getDeepseekModelCapabilities } from "#src/providers/capability-matrix.js";
+import { createLangChainRuntime } from "#src/providers/langchain-runtime.js";
+import { readProviderSettings } from "#src/providers/types.js";
+import type { ProviderDefinition } from "#src/providers/types.js";
 
 export const deepseekProvider: ProviderDefinition = {
   id: "deepseek",

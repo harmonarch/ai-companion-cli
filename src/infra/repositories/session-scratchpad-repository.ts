@@ -1,5 +1,5 @@
-import { FileStore } from "../storage/file-store.js";
-import type { SessionScratchpad } from "../../types/memory.js";
+import { FileStore } from "#src/infra/storage/file-store.js";
+import type { SessionScratchpad } from "#src/types/memory.js";
 
 export class SessionScratchpadRepository {
   constructor(private readonly store: FileStore) {

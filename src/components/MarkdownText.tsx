@@ -1,7 +1,7 @@
 import React from "react";
 import { Box, Text } from "ink";
 import pc from "picocolors";
-import { sanitizeMultilineText } from "../utils/sanitize-text.js";
+import { sanitizeMultilineText } from "#src/utils/sanitize-text.js";
 
 export function MarkdownText({ content }: { content: string }) {
   const lines = sanitizeMultilineText(content, 8000).split(/\n/);

@@ -1,9 +1,9 @@
 import React from "react";
 import { Box, Text } from "ink";
 import pc from "picocolors";
-import type { MemoryEditState } from "../app/ui-state.js";
-import type { MemoryDetailRecord } from "../types/memory.js";
-import { sanitizeSingleLineText } from "../utils/sanitize-text.js";
+import type { MemoryEditState } from "#src/app/ui-state.js";
+import type { MemoryDetailRecord } from "#src/types/memory.js";
+import { sanitizeSingleLineText } from "#src/utils/sanitize-text.js";
 
 const MAX_EVIDENCE_ITEMS = 3;
 

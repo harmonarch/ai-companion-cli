@@ -1,8 +1,8 @@
 import React from "react";
 import { Box, Text } from "ink";
 import pc from "picocolors";
-import type { SessionSummary } from "../types/session.js";
-import { sanitizeSingleLineText } from "../utils/sanitize-text.js";
+import type { SessionSummary } from "#src/types/session.js";
+import { sanitizeSingleLineText } from "#src/utils/sanitize-text.js";
 
 export function SessionList({
   title = "sessions",

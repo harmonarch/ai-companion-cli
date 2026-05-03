@@ -1,13 +1,13 @@
 import { tool } from "@langchain/core/tools";
 import type { ZodTypeAny, infer as Infer } from "zod";
-import type { ToolExecutionRepository } from "../infra/repositories/tool-execution-repository.js";
-import type { ToolCallMessageContentPart, ToolResultMessageContentPart } from "../types/chat.js";
-import type { ToolConfirmationRequest, ToolDescriptor, ToolExecutionRecord } from "../types/tool.js";
-import { httpFetchToolDefinition } from "./http-fetch.js";
-import { listDirToolDefinition } from "./list-dir.js";
-import { readFileToolDefinition } from "./read-file.js";
-import { searchTextToolDefinition } from "./search-text.js";
-import { localTimeToolDefinition } from "./local-time.js";
+import type { ToolExecutionRepository } from "#src/infra/repositories/tool-execution-repository.js";
+import type { ToolCallMessageContentPart, ToolResultMessageContentPart } from "#src/types/chat.js";
+import type { ToolConfirmationRequest, ToolDescriptor, ToolExecutionRecord } from "#src/types/tool.js";
+import { httpFetchToolDefinition } from "#src/tools/http-fetch.js";
+import { listDirToolDefinition } from "#src/tools/list-dir.js";
+import { readFileToolDefinition } from "#src/tools/read-file.js";
+import { searchTextToolDefinition } from "#src/tools/search-text.js";
+import { localTimeToolDefinition } from "#src/tools/local-time.js";
 
 interface ToolDefinition<TSchema extends ZodTypeAny = ZodTypeAny> extends ToolDescriptor {
   schema: TSchema;

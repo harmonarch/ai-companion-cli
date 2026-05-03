@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Box, Text, useInput, usePaste, useStdin, useStdout } from "ink";
 import pc from "picocolors";
-import { completeSlashCommand, getSlashCommandPreviewSuffix } from "../controller/slash-commands.js";
-import { sanitizeSingleLineText } from "../utils/sanitize-text.js";
+import { completeSlashCommand, getSlashCommandPreviewSuffix } from "#src/controller/slash-commands.js";
+import { sanitizeSingleLineText } from "#src/utils/sanitize-text.js";
 
 const TERMINAL_FOCUS_IN = "[I";
 const TERMINAL_FOCUS_OUT = "[O";

@@ -1,9 +1,9 @@
 import { HumanMessage, AIMessage, SystemMessage, ToolMessage, type BaseMessage } from "@langchain/core/messages";
 import { END, MessagesAnnotation, START, StateGraph } from "@langchain/langgraph";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
-import type { ProviderRuntime, RuntimeToolCall } from "../providers/types.js";
-import type { ChatRuntimeEvent } from "../types/events.js";
-import { messageContentToPlainText, type ChatMessage, type MessageContent, type ToolCallMessageContentPart } from "../types/chat.js";
+import type { ProviderRuntime, RuntimeToolCall } from "#src/providers/types.js";
+import type { ChatRuntimeEvent } from "#src/types/events.js";
+import { messageContentToPlainText, type ChatMessage, type MessageContent, type ToolCallMessageContentPart } from "#src/types/chat.js";
 
 export function buildGraph(runtime: ProviderRuntime, tools: unknown[]) {
   const toolNode = new ToolNode(tools as never[]);

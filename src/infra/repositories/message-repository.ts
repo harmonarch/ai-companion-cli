@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { FileStore } from "../storage/file-store.js";
+import { FileStore } from "#src/infra/storage/file-store.js";
 import {
   createTextMessageContent,
   type ChatMessage,
@@ -7,7 +7,7 @@ import {
   type MessageContentPart,
   type MessageKind,
   type MessageRole,
-} from "../../types/chat.js";
+} from "#src/types/chat.js";
 
 function compareMessages(a: ChatMessage, b: ChatMessage) {
   return a.createdAt.localeCompare(b.createdAt);

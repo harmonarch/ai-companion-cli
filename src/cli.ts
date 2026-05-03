@@ -1,7 +1,7 @@
 import React from "react";
 import { render } from "ink";
 import { cac } from "cac";
-import { App } from "./app.js";
+import { App } from "#src/app.js";
 
 const cli = cac("ai-companion");
 

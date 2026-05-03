@@ -1,5 +1,5 @@
-import { FileStore } from "../storage/file-store.js";
-import type { EmotionState, EmotionPrimaryState, EmotionTransitionReason } from "../../types/emotion.js";
+import { FileStore } from "#src/infra/storage/file-store.js";
+import type { EmotionState, EmotionPrimaryState, EmotionTransitionReason } from "#src/types/emotion.js";
 
 export class EmotionStateRepository {
   constructor(private readonly store: FileStore) {

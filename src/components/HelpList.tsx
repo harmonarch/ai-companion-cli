@@ -1,7 +1,7 @@
 import React from "react";
 import { Box, Text } from "ink";
 import pc from "picocolors";
-import { getSlashCommandSpecs } from "../controller/slash-commands.js";
+import { getSlashCommandSpecs } from "#src/controller/slash-commands.js";
 
 export function HelpList() {
   const helpItems = getSlashCommandSpecs();

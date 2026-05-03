@@ -11,6 +11,9 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "types": ["node"],
+    "paths": {
+      "#src/*": ["./src/*"]
+    },
     "outDir": "dist"
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "tsup.config.ts"]
