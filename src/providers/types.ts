@@ -1,4 +1,3 @@
-import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import type { AppConfig, ProviderSettings } from "../infra/config/load-config.js";
 import type { PromptLoader } from "../prompts/loader.js";
 import type { SessionRecord } from "../types/session.js";
@@ -17,11 +16,18 @@ export interface SystemPromptContext {
   session: SessionRecord;
 }
 
+export interface ProviderRuntime {
+  invoke(input: unknown): Promise<unknown>;
+  bindTools(tools: unknown[]): ProviderRuntime;
+  hasToolCalls(message: unknown): boolean;
+  extractText(value: unknown): string;
+}
+
 export interface ProviderDefinition {
   id: ProviderId;
   defaultModel: string;
   getCapabilities(model: string): ModelCapabilities;
-  createChatModel(config: AppConfig, session: SessionRecord): BaseChatModel;
+  createRuntime(config: AppConfig, session: SessionRecord): ProviderRuntime;
   resolveSystemPrompt(context: SystemPromptContext): string;
 }
 

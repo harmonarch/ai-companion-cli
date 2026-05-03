@@ -1,25 +1,22 @@
 import { HumanMessage, AIMessage, SystemMessage, type BaseMessage } from "@langchain/core/messages";
-import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { END, MessagesAnnotation, START, StateGraph } from "@langchain/langgraph";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
+import type { ProviderRuntime } from "../providers/types.js";
 import { messageContentToPlainText, type ChatMessage } from "../types/chat.js";
 
-export function buildGraph(model: BaseChatModel, tools: unknown[]) {
-  const modelWithTools = tools.length > 0 ? model.bindTools?.(tools as never[]) ?? model : model;
+export function buildGraph(runtime: ProviderRuntime, tools: unknown[]) {
   const toolNode = new ToolNode(tools as never[]);
+  const runtimeWithTools = runtime.bindTools(tools);
 
   return new StateGraph(MessagesAnnotation)
     .addNode("agent", async (state) => ({
-      messages: [await modelWithTools.invoke(state.messages)],
+      messages: [await runtimeWithTools.invoke(state.messages)],
     }))
     .addNode("tools", toolNode)
     .addEdge(START, "agent")
     .addConditionalEdges(
       "agent",
-      (state) => {
-        const lastMessage = state.messages.at(-1) as { tool_calls?: unknown[] } | undefined;
-        return lastMessage?.tool_calls?.length ? "tools" : END;
-      },
+      (state) => runtime.hasToolCalls(state.messages.at(-1)) ? "tools" : END,
       {
         tools: "tools",
         [END]: END,

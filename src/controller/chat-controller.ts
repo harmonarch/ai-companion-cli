@@ -1,4 +1,3 @@
-import { AIMessageChunk } from "@langchain/core/messages";
 import type { AppConfig } from "../infra/config/load-config.js";
 import { MessageRepository } from "../infra/repositories/message-repository.js";
 import { RunRepository } from "../infra/repositories/run-repository.js";
@@ -108,8 +107,8 @@ export class ChatController {
         throw new Error(`Unsupported provider: ${session.provider}`);
       }
 
-      const model = provider.createChatModel(this.config, session);
-      const graph = buildGraph(model, runtimeTools);
+      const runtime = provider.createRuntime(this.config, session);
+      const graph = buildGraph(runtime, runtimeTools);
       const history = this.messageRepository.listBySession(session.id).filter((message) => message.id !== assistantMessage.id);
       const selectedHistory = selectHistory(history, this.config.historyMaxMessages);
       const systemPrompt = provider.resolveSystemPrompt({
@@ -122,7 +121,7 @@ export class ChatController {
       for await (const event of graph.streamEvents(buildGraphInput(selectedHistory, systemPrompt, memoryContext, emotionContext), { version: "v2" })) {
         switch (event.event) {
           case "on_chat_model_stream": {
-            const text = extractChunkText(event.data?.chunk);
+            const text = runtime.extractText(event.data?.chunk);
             if (text) {
               if (!firstTokenRecorded) {
                 this.runRepository.markFirstToken(run.id);
@@ -133,7 +132,7 @@ export class ChatController {
             break;
           }
           case "on_chat_model_end": {
-            const outputText = extractChunkText(event.data?.output);
+            const outputText = runtime.extractText(event.data?.output);
             if (outputText) {
               if (!firstTokenRecorded) {
                 this.runRepository.markFirstToken(run.id);
@@ -168,8 +167,8 @@ export class ChatController {
         run,
         toolExecutions: this.toolExecutionRepository.listBySession(session.id).filter((execution) => execution.runId === run.id),
         extractMemoryCandidates: async (prompt) => {
-          const response = await model.invoke(prompt);
-          return extractChunkText(response);
+          const response = await runtime.invoke(prompt);
+          return runtime.extractText(response);
         },
       });
       this.sessionStore.touchSession(session.id);
@@ -190,35 +189,4 @@ export class ChatController {
       throw error;
     }
   }
-}
-
-function extractChunkText(value: unknown): string {
-  if (typeof value === "string") {
-    return value;
-  }
-
-  if (value instanceof AIMessageChunk) {
-    return extractChunkText(value.content);
-  }
-
-  if (value && typeof value === "object" && "content" in value) {
-    return extractChunkText((value as { content: unknown }).content);
-  }
-
-  if (Array.isArray(value)) {
-    return value
-      .map((item) => {
-        if (typeof item === "string") {
-          return item;
-        }
-        if (item && typeof item === "object" && "text" in item) {
-          const text = (item as { text?: unknown }).text;
-          return typeof text === "string" ? text : "";
-        }
-        return "";
-      })
-      .join("");
-  }
-
-  return "";
 }

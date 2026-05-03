@@ -2,6 +2,7 @@ import { ChatOpenAI } from "@langchain/openai";
 import type { AppConfig } from "../infra/config/load-config.js";
 import type { SessionRecord } from "../types/session.js";
 import { getDeepseekModelCapabilities } from "./capability-matrix.js";
+import { createLangChainRuntime } from "./langchain-runtime.js";
 import { readProviderSettings } from "./types.js";
 import type { ProviderDefinition } from "./types.js";
 
@@ -11,13 +12,13 @@ export const deepseekProvider: ProviderDefinition = {
   getCapabilities(model) {
     return getDeepseekModelCapabilities(model);
   },
-  createChatModel(config: AppConfig, session: SessionRecord) {
+  createRuntime(config: AppConfig, session: SessionRecord) {
     const settings = getDeepseekSettings(config);
     if (!settings.apiKey) {
       throw new Error("Missing DEEPSEEK_API_KEY.");
     }
 
-    return new ChatOpenAI({
+    return createLangChainRuntime(new ChatOpenAI({
       model: session.model,
       apiKey: settings.apiKey,
       temperature: 0.2,
@@ -25,7 +26,7 @@ export const deepseekProvider: ProviderDefinition = {
       configuration: {
         baseURL: settings.baseUrl,
       },
-    });
+    }));
   },
   resolveSystemPrompt({ config, promptLoader }) {
     return promptLoader.load("deepseek", {
