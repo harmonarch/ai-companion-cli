@@ -134,8 +134,6 @@ UI 中展示的 session snapshot 依赖这些仓储的协同读取，以及 `src
 - `AI_COMPANION_MEMORY_ENABLED`
 - `AI_COMPANION_MEMORY_USER_ID`
 - `AI_COMPANION_MEMORY_AUTO_WRITE_LOW_RISK`
-- `DEEPSEEK_API_KEY`
-- `DEEPSEEK_BASE_URL`
 
 ### Prompt 加载与构建产物
 
