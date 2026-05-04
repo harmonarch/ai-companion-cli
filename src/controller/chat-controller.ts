@@ -207,7 +207,8 @@ export class ChatController {
         session,
       });
       const memoryContext = this.memoryService.retrieveForPrompt().context;
-      const graphInput = buildGraphInput(selectedHistory, systemPrompt, memoryContext, emotionContext);
+      const temporalContext = buildTemporalContext(selectedHistory);
+      const graphInput = buildGraphInput(selectedHistory, systemPrompt, memoryContext, emotionContext, temporalContext);
 
       for await (const event of streamCanonicalEvents(graph, graphInput, runtime, {
         sessionId: session.id,
@@ -260,6 +261,74 @@ export class ChatController {
       throw error;
     }
   }
+}
+
+function buildTemporalContext(messages: ChatMessage[]) {
+  const latestMessage = messages.at(-1);
+  if (!latestMessage) {
+    return undefined;
+  }
+
+  const latestMessageTime = new Date(latestMessage.createdAt);
+  if (Number.isNaN(latestMessageTime.getTime())) {
+    return undefined;
+  }
+
+  const now = new Date();
+  const elapsedMs = Math.max(0, now.getTime() - latestMessageTime.getTime());
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const lines = [
+    "Temporal context:",
+    `Current local time: ${formatTimestamp(now)}`,
+    `Timezone: ${timezone}`,
+    `Latest prior message time: ${formatTimestamp(latestMessageTime)}`,
+    `Elapsed since latest prior message: ${formatElapsedDuration(elapsedMs)}`,
+  ];
+
+  if (elapsedMs >= 24 * 60 * 60 * 1000) {
+    lines.push("This conversation is resuming after a multi-day gap.");
+  }
+
+  return lines.join("\n");
+}
+
+function formatTimestamp(date: Date) {
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "full",
+    timeStyle: "long",
+  }).format(date);
+}
+
+function formatElapsedDuration(elapsedMs: number) {
+  const totalMinutes = Math.floor(elapsedMs / (60 * 1000));
+  const totalHours = Math.floor(totalMinutes / 60);
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
+  const minutes = totalMinutes % 60;
+
+  if (days > 0) {
+    return joinDurationParts([
+      pluralize(days, "day"),
+      hours > 0 ? pluralize(hours, "hour") : undefined,
+    ]);
+  }
+
+  if (totalHours > 0) {
+    return joinDurationParts([
+      pluralize(totalHours, "hour"),
+      minutes > 0 ? pluralize(minutes, "minute") : undefined,
+    ]);
+  }
+
+  return pluralize(Math.max(1, totalMinutes), "minute");
+}
+
+function joinDurationParts(parts: Array<string | undefined>) {
+  return parts.filter((part): part is string => Boolean(part)).join(" ");
+}
+
+function pluralize(value: number, unit: string) {
+  return `${value} ${unit}${value === 1 ? "" : "s"}`;
 }
 
 function createToolCallKey(toolName: string, input: unknown) {

@@ -151,7 +151,13 @@ export async function* streamCanonicalEvents(
   }
 }
 
-export function buildGraphInput(messages: ChatMessage[], systemPrompt: string, memoryContext?: string, emotionContext?: string) {
+export function buildGraphInput(
+  messages: ChatMessage[],
+  systemPrompt: string,
+  memoryContext?: string,
+  emotionContext?: string,
+  temporalContext?: string,
+) {
   const history: BaseMessage[] = [new SystemMessage(systemPrompt)];
 
   if (memoryContext) {
@@ -160,6 +166,10 @@ export function buildGraphInput(messages: ChatMessage[], systemPrompt: string, m
 
   if (emotionContext) {
     history.push(new SystemMessage(emotionContext));
+  }
+
+  if (temporalContext) {
+    history.push(new SystemMessage(temporalContext));
   }
 
   for (const message of messages) {
