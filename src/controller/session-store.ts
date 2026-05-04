@@ -50,7 +50,7 @@ export class SessionStore {
     private readonly memoryService: MemoryService,
     private readonly emotionService: EmotionService,
     private readonly assistantProfileRepository: AssistantProfileRepository,
-    private readonly defaults: { provider: string; model: string },
+    private defaults: { provider: string; model: string },
   ) {}
 
   listSessions(): SessionSummary[] {
@@ -139,6 +139,15 @@ export class SessionStore {
 
   renameSession(sessionId: string, title: string) {
     this.sessionRepository.updateTitle(sessionId, title);
+  }
+
+  updateSessionProviderAndModel(sessionId: string, input: { provider: string; model: string }) {
+    this.sessionRepository.updateProviderAndModel(sessionId, input);
+    return this.loadSession(sessionId);
+  }
+
+  updateDefaults(defaults: { provider: string; model: string }) {
+    this.defaults = defaults;
   }
 
   resetEmotion(sessionId: string) {

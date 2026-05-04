@@ -23,6 +23,12 @@ export interface RuntimeToolCall {
   input: unknown;
 }
 
+export interface ValidateApiKeyInput {
+  apiKey: string;
+  baseUrl?: string;
+  model?: string;
+}
+
 export interface ProviderRuntime {
   invoke(input: unknown): Promise<unknown>;
   bindTools(tools: unknown[]): ProviderRuntime;
@@ -36,6 +42,8 @@ export interface ProviderRuntime {
 export interface ProviderDefinition {
   id: ProviderId;
   defaultModel: string;
+  listModels(): string[];
+  validateApiKey(config: AppConfig, input: ValidateApiKeyInput): Promise<void>;
   getCapabilities(model: string): ModelCapabilities;
   createRuntime(config: AppConfig, session: SessionRecord): ProviderRuntime;
   resolveSystemPrompt(context: SystemPromptContext): string;

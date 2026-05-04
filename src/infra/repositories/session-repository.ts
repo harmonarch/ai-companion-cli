@@ -71,6 +71,20 @@ export class SessionRepository {
     });
   }
 
+  updateProviderAndModel(sessionId: string, input: { provider: string; model: string }) {
+    const session = this.getById(sessionId);
+    if (!session) {
+      throw new Error(`Session not found: ${sessionId}`);
+    }
+
+    this.store.writeJson(getSessionPath(sessionId), {
+      ...session,
+      provider: input.provider,
+      model: input.model,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
   delete(sessionId: string) {
     this.store.delete(getSessionPath(sessionId));
   }

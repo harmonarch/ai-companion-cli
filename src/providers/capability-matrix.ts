@@ -13,3 +13,7 @@ const deepseekCapabilities: Record<string, ModelCapabilities> = {
 export function getDeepseekModelCapabilities(model: string): ModelCapabilities {
   return deepseekCapabilities[model] ?? defaultCapabilities;
 }
+
+export function listDeepseekModels() {
+  return Object.keys(deepseekCapabilities);
+}

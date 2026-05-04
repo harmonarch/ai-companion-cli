@@ -19,9 +19,21 @@ export interface MemoryEditState {
   };
 }
 
+export type SetupInputState =
+  | { mode: "normal" }
+  | {
+      mode: "awaiting-api-key";
+      providerId: string;
+      model: string;
+    };
+
 export type OverlayState =
   | { kind: "none" }
   | { kind: "help" }
+  | {
+      kind: "model";
+      selectedIndex: number;
+    }
   | {
       kind: "sessions";
       selectedIndex: number;
@@ -43,6 +55,7 @@ export interface UiState {
   pendingProfileClearConfirmation: boolean;
   pendingConfirmations: PendingConfirmation[];
   overlay: OverlayState;
+  setupInput: SetupInputState;
 }
 
 export type UiAction =
@@ -54,6 +67,8 @@ export type UiAction =
   | { type: "confirmations/enqueue"; request: ToolConfirmationRequest; resolve(value: boolean): void }
   | { type: "confirmations/shift" }
   | { type: "overlay/help/open" }
+  | { type: "overlay/model/open"; selectedIndex: number }
+  | { type: "overlay/model/select"; selectedIndex: number }
   | { type: "overlay/close" }
   | { type: "overlay/sessions/open"; selectedIndex: number }
   | { type: "overlay/sessions/select"; selectedIndex: number }
@@ -62,7 +77,9 @@ export type UiAction =
   | { type: "overlay/memory/select"; selectedIndex: number }
   | { type: "overlay/memory/delete-confirm"; memoryId: string | null }
   | { type: "overlay/memory/view"; memoryId: string | null }
-  | { type: "overlay/memory/edit"; value: SetStateAction<MemoryEditState | null> };
+  | { type: "overlay/memory/edit"; value: SetStateAction<MemoryEditState | null> }
+  | { type: "setup/input/await-api-key"; providerId: string; model: string }
+  | { type: "setup/input/clear" };
 
 export const initialUiState: UiState = {
   input: "",
@@ -72,6 +89,7 @@ export const initialUiState: UiState = {
   pendingProfileClearConfirmation: false,
   pendingConfirmations: [],
   overlay: { kind: "none" },
+  setupInput: { mode: "normal" },
 };
 
 export function uiReducer(state: UiState, action: UiAction): UiState {
@@ -115,6 +133,25 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
       return {
         ...state,
         overlay: { kind: "help" },
+      };
+    case "overlay/model/open":
+      return {
+        ...state,
+        overlay: {
+          kind: "model",
+          selectedIndex: action.selectedIndex,
+        },
+      };
+    case "overlay/model/select":
+      if (state.overlay.kind !== "model") {
+        return state;
+      }
+      return {
+        ...state,
+        overlay: {
+          ...state.overlay,
+          selectedIndex: action.selectedIndex,
+        },
       };
     case "overlay/close":
       return {
@@ -207,6 +244,20 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
           editState: applyUpdate(state.overlay.editState, action.value),
         },
       };
+    case "setup/input/await-api-key":
+      return {
+        ...state,
+        setupInput: {
+          mode: "awaiting-api-key",
+          providerId: action.providerId,
+          model: action.model,
+        },
+      };
+    case "setup/input/clear":
+      return {
+        ...state,
+        setupInput: { mode: "normal" },
+      };
     default:
       return state;
   }
@@ -216,12 +267,14 @@ export function getActiveConfirmation(state: UiState) {
   return state.pendingConfirmations[0] ?? null;
 }
 
-export function getOverlayMode(state: UiState): "confirm" | "sessions" | "memory" | "help" | null {
+export function getOverlayMode(state: UiState): "confirm" | "model" | "sessions" | "memory" | "help" | null {
   if (state.pendingConfirmations.length > 0) {
     return "confirm";
   }
 
   switch (state.overlay.kind) {
+    case "model":
+      return "model";
     case "sessions":
       return "sessions";
     case "memory":
@@ -233,12 +286,12 @@ export function getOverlayMode(state: UiState): "confirm" | "sessions" | "memory
   }
 }
 
-export function getPromptInputDisabledReason(state: UiState): "streaming" | "confirm" | "sessions" | "memory" | "help" | undefined {
+export function getPromptInputDisabledReason(state: UiState): "streaming" | "confirm" | "model" | "sessions" | "memory" | "help" | undefined {
   const overlayMode = getOverlayMode(state);
   return overlayMode ?? (state.isStreaming ? "streaming" : undefined);
 }
 
-export function getStatusMode(state: UiState): "confirm" | "sessions" | "memory" | "help" | "streaming" | "ready" {
+export function getStatusMode(state: UiState): "confirm" | "model" | "sessions" | "memory" | "help" | "streaming" | "ready" {
   const overlayMode = getOverlayMode(state);
   return overlayMode ?? (state.isStreaming ? "streaming" : "ready");
 }
@@ -257,6 +310,10 @@ export function getSessionsOverlay(state: UiState) {
 
 export function getMemoryOverlay(state: UiState) {
   return state.overlay.kind === "memory" ? state.overlay : null;
+}
+
+export function getModelOverlay(state: UiState) {
+  return state.overlay.kind === "model" ? state.overlay : null;
 }
 
 function applyUpdate<T>(current: T, update: SetStateAction<T>) {

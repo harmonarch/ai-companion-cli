@@ -9,6 +9,7 @@ const modeLabels = {
   ready: "ready",
   streaming: "streaming",
   confirm: "confirm",
+  model: "model",
   sessions: "sessions",
   memory: "memory",
   help: "help",
@@ -21,7 +22,7 @@ export function StatusBar({
   statusMessage,
 }: {
   session: SessionRecord;
-  mode: "ready" | "streaming" | "confirm" | "sessions" | "memory" | "help";
+  mode: "ready" | "streaming" | "confirm" | "model" | "sessions" | "memory" | "help";
   emotion: EmotionPrimaryState;
   statusMessage?: string;
 }) {

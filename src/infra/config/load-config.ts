@@ -11,7 +11,7 @@ const defaultHistoryMaxMessages = 24;
 const providerPromptSchema = z.record(z.string(), z.string().min(1));
 const providerSettingsSchema = z.record(z.string(), z.record(z.string(), z.unknown()));
 
-const rawConfigSchema = z.object({
+export const rawConfigSchema = z.object({
   defaultProvider: z.string().min(1).optional(),
   defaultModel: z.string().min(1).optional(),
   storagePath: z.string().min(1).optional(),
@@ -30,7 +30,7 @@ const rawConfigSchema = z.object({
   }).partial().optional(),
 }).partial();
 
-type RawConfig = z.infer<typeof rawConfigSchema>;
+export type RawConfig = z.infer<typeof rawConfigSchema>;
 
 export type ProviderSettings = Record<string, unknown>;
 
@@ -45,6 +45,21 @@ export interface MemoryConfig {
   autoWriteLowRisk: boolean;
 }
 
+export interface AppConfigSetup {
+  configPath: string;
+  configFileExists: boolean;
+  defaultProviderConfigured: boolean;
+  defaultModelConfigured: boolean;
+  providerApiKeysConfigured: Record<string, boolean>;
+  setupRequired: boolean;
+  setupReason:
+    | "missing_config_file"
+    | "missing_default_provider"
+    | "missing_default_model"
+    | "missing_api_key"
+    | "ready";
+}
+
 export interface AppConfig {
   defaultProvider: ProviderId;
   defaultModel: string;
@@ -55,50 +70,72 @@ export interface AppConfig {
   providerSettings: Record<string, ProviderSettings>;
   memory: MemoryConfig;
   assistantProfile?: AssistantProfile;
+  setup: AppConfigSetup;
 }
 
-function getConfigCandidates() {
-  const explicitPath = process.env.AI_COMPANION_CONFIG_PATH;
-  return [
-    explicitPath,
-    path.join(homedir(), ".config", "ai-companion", "config.toml"),
-  ].filter((candidate): candidate is string => Boolean(candidate));
+interface ParsedTomlConfig {
+  config: RawConfig;
+  configDir?: string;
+  configFileExists: boolean;
+  configPath: string;
 }
 
-function readTomlConfig(): { config: RawConfig; configDir?: string } {
-  for (const candidate of getConfigCandidates()) {
-    if (!existsSync(candidate)) {
-      continue;
-    }
+export function getConfigPath() {
+  return process.env.AI_COMPANION_CONFIG_PATH
+    ?? path.join(homedir(), ".config", "ai-companion", "config.toml");
+}
 
-    try {
-      const parsed = TOML.parse(readFileSync(candidate, "utf8"));
-      return {
-        config: rawConfigSchema.parse(parsed),
-        configDir: path.dirname(candidate),
-      };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to parse config file ${candidate}: ${message}`);
-    }
+function readTomlConfig(): ParsedTomlConfig {
+  const configPath = getConfigPath();
+  if (!existsSync(configPath)) {
+    return {
+      config: {},
+      configDir: path.dirname(configPath),
+      configFileExists: false,
+      configPath,
+    };
   }
 
-  return {
-    config: {},
-    configDir: undefined,
-  };
+  try {
+    const parsed = TOML.parse(readFileSync(configPath, "utf8"));
+    return {
+      config: rawConfigSchema.parse(parsed),
+      configDir: path.dirname(configPath),
+      configFileExists: true,
+      configPath,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to parse config file ${configPath}: ${message}`);
+  }
 }
 
 export function loadConfig(): AppConfig {
-  const { config: fileConfig, configDir } = readTomlConfig();
+  const {
+    config: fileConfig,
+    configDir,
+    configFileExists,
+    configPath,
+  } = readTomlConfig();
   const workspaceRoot = process.cwd();
   const historyMaxMessages = readPositiveInt(process.env.AI_COMPANION_HISTORY_MAX_MESSAGES)
     ?? fileConfig.history?.maxMessages
     ?? defaultHistoryMaxMessages;
+  const defaultProvider = process.env.AI_COMPANION_PROVIDER ?? fileConfig.defaultProvider ?? "deepseek";
+  const defaultModel = process.env.AI_COMPANION_MODEL ?? fileConfig.defaultModel ?? "deepseek-chat";
+  const providerSettings = resolveProviderSettings(fileConfig);
+  const setup = resolveSetupState({
+    configFileExists,
+    configPath,
+    defaultProvider,
+    defaultProviderConfigured: Boolean(fileConfig.defaultProvider),
+    defaultModelConfigured: Boolean(fileConfig.defaultModel),
+    providerSettings,
+  });
 
   return {
-    defaultProvider: process.env.AI_COMPANION_PROVIDER ?? fileConfig.defaultProvider ?? "deepseek",
-    defaultModel: process.env.AI_COMPANION_MODEL ?? fileConfig.defaultModel ?? "deepseek-chat",
+    defaultProvider,
+    defaultModel,
     storagePath: process.env.AI_COMPANION_STORAGE_PATH ?? fileConfig.storagePath ?? path.join(homedir(), ".ai-companion"),
     historyMaxMessages,
     workspaceRoot,
@@ -106,7 +143,7 @@ export function loadConfig(): AppConfig {
       defaultSystemFile: resolveConfigPath(configDir, fileConfig.prompts?.defaultSystemFile),
       providers: resolvePromptFiles(configDir, fileConfig.prompts?.providers),
     },
-    providerSettings: resolveProviderSettings(fileConfig),
+    providerSettings,
     memory: {
       enabled: readBoolean(process.env.AI_COMPANION_MEMORY_ENABLED)
         ?? fileConfig.memory?.enabled
@@ -119,7 +156,63 @@ export function loadConfig(): AppConfig {
         ?? true,
     },
     assistantProfile: readAssistantProfile(workspaceRoot),
+    setup,
   };
+}
+
+function resolveSetupState({
+  configFileExists,
+  configPath,
+  defaultProvider,
+  defaultProviderConfigured,
+  defaultModelConfigured,
+  providerSettings,
+}: {
+  configFileExists: boolean;
+  configPath: string;
+  defaultProvider: string;
+  defaultProviderConfigured: boolean;
+  defaultModelConfigured: boolean;
+  providerSettings: Record<string, ProviderSettings>;
+}): AppConfigSetup {
+  const providerApiKeysConfigured = Object.fromEntries(
+    Object.entries(providerSettings).map(([providerId, settings]) => [providerId, hasApiKeySetting(providerId, settings)]),
+  );
+  const hasSelectedProviderApiKey = providerApiKeysConfigured[defaultProvider] ?? hasApiKeySetting(defaultProvider, providerSettings[defaultProvider] ?? {});
+
+  let setupReason: AppConfigSetup["setupReason"] = "ready";
+  if (!configFileExists) {
+    setupReason = "missing_config_file";
+  } else if (!defaultProviderConfigured) {
+    setupReason = "missing_default_provider";
+  } else if (!defaultModelConfigured) {
+    setupReason = "missing_default_model";
+  } else if (!hasSelectedProviderApiKey) {
+    setupReason = "missing_api_key";
+  }
+
+  return {
+    configPath,
+    configFileExists,
+    defaultProviderConfigured,
+    defaultModelConfigured,
+    providerApiKeysConfigured,
+    setupRequired: setupReason !== "ready",
+    setupReason,
+  };
+}
+
+function hasApiKeySetting(providerId: string, settings: ProviderSettings) {
+  const envKey = process.env[getProviderApiKeyEnvName(providerId)];
+  if (typeof envKey === "string" && envKey.trim()) {
+    return true;
+  }
+
+  return typeof settings.apiKey === "string" && settings.apiKey.trim().length > 0;
+}
+
+export function getProviderApiKeyEnvName(providerId: string) {
+  return `${providerId.replace(/[^a-zA-Z0-9]+/g, "_").toUpperCase()}_API_KEY`;
 }
 
 function readAssistantProfile(workspaceRoot: string) {
@@ -190,8 +283,8 @@ function resolveProviderSettings(fileConfig: RawConfig): Record<string, Provider
   const configuredProviders = fileConfig.providers ?? {};
   const deepseekSettings = {
     ...(configuredProviders.deepseek ?? {}),
-    apiKey: process.env.DEEPSEEK_API_KEY ?? configuredProviders.deepseek?.apiKey,
-    baseUrl: process.env.DEEPSEEK_BASE_URL ?? configuredProviders.deepseek?.baseUrl,
+    apiKey: configuredProviders.deepseek?.apiKey,
+    baseUrl: configuredProviders.deepseek?.baseUrl,
   };
 
   return {

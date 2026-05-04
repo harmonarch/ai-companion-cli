@@ -1,11 +1,13 @@
-import React, { useEffect, useReducer, useState } from "react";
+import React, { useCallback, useEffect, useReducer, useState } from "react";
 import { Box, Text, useApp } from "ink";
 import pc from "picocolors";
 import { createAppServices } from "#src/app/create-app-services.js";
 import { resolveInitialSession } from "#src/app/resolve-initial-session.js";
+import { formatSetupStatus } from "#src/app/setup-flow.js";
 import {
   getActiveConfirmation,
   getMemoryOverlay,
+  getModelOverlay,
   getPromptInputDisabledReason,
   getSessionsOverlay,
   getStatusMode,
@@ -14,19 +16,23 @@ import {
   isPromptDisabled,
   uiReducer,
 } from "#src/app/ui-state.js";
+import { applyModelSelection } from "#src/app/handle-app-command.js";
 import { useAppInput } from "#src/app/use-app-input.js";
 import { useSubmitHandler } from "#src/app/use-submit-handler.js";
 import { ChatList } from "#src/components/ChatList.js";
 import { HelpList } from "#src/components/HelpList.js";
 import { HorizontalDivider } from "#src/components/HorizontalDivider.js";
 import { MemoryList } from "#src/components/MemoryList.js";
+import { ModelList } from "#src/components/ModelList.js";
 import { PromptInput } from "#src/components/PromptInput.js";
 import { SessionList } from "#src/components/SessionList.js";
 import { StatusBar } from "#src/components/StatusBar.js";
 import { parseSlashCommand } from "#src/controller/slash-commands.js";
 import type { ChatController } from "#src/controller/chat-controller.js";
 import type { SessionSnapshot, SessionStore } from "#src/controller/session-store.js";
+import type { RuntimeConfigService } from "#src/infra/config/runtime-config-service.js";
 import type { AssistantProfileRepository } from "#src/infra/repositories/assistant-profile-repository.js";
+import { listProviderCatalog } from "#src/providers/registry.js";
 import type { SessionSummary } from "#src/types/session.js";
 import { sanitizeSingleLineText } from "#src/utils/sanitize-text.js";
 
@@ -34,6 +40,7 @@ interface AppServices {
   sessionStore: SessionStore | null;
   controller: ChatController | null;
   assistantProfileRepository: AssistantProfileRepository | null;
+  runtimeConfig: RuntimeConfigService | null;
   error: string | null;
 }
 
@@ -63,6 +70,7 @@ export function App({
     sessionStore: null,
     controller: null,
     assistantProfileRepository: null,
+    runtimeConfig: null,
     error: null,
   });
   const [uiState, dispatch] = useReducer(uiReducer, initialUiState);
@@ -70,6 +78,8 @@ export function App({
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [promptHistory, setPromptHistory] = useState<PromptHistoryState>(initialPromptHistoryState);
   const sessionStore = services.sessionStore;
+  const runtimeConfig = services.runtimeConfig;
+  const modelCatalog = listProviderCatalog();
 
   useEffect(() => {
     try {
@@ -78,6 +88,7 @@ export function App({
         sessionStore: nextServices.sessionStore,
         controller: nextServices.controller,
         assistantProfileRepository: nextServices.assistantProfileRepository,
+        runtimeConfig: nextServices.runtimeConfig,
         error: null,
       });
 
@@ -90,6 +101,7 @@ export function App({
         sessionStore: null,
         controller: null,
         assistantProfileRepository: null,
+        runtimeConfig: null,
         error: `Startup error: ${message}`,
       });
       return;
@@ -97,7 +109,7 @@ export function App({
   }, []);
 
   useEffect(() => {
-    if (!sessionStore) {
+    if (!sessionStore || !runtimeConfig) {
       return;
     }
 
@@ -111,11 +123,25 @@ export function App({
       setSessions(resolution.sessions);
     }
 
-    dispatch({ type: "status/set", value: resolution.statusMessage });
-  }, [initialSessionId, sessionStore]);
+    const setup = runtimeConfig.getSetupState();
+    const providerId = resolution.snapshot?.session.provider ?? runtimeConfig.getConfig().defaultProvider;
+    const model = resolution.snapshot?.session.model ?? runtimeConfig.getConfig().defaultModel;
+
+    if (setup.setupReason === "missing_api_key") {
+      dispatch({ type: "setup/input/await-api-key", providerId, model });
+    } else {
+      dispatch({ type: "setup/input/clear" });
+    }
+
+    dispatch({
+      type: "status/set",
+      value: resolution.statusMessage ?? formatSetupStatus(setup, { providerId, model }),
+    });
+  }, [initialSessionId, runtimeConfig, sessionStore]);
 
   const activeConfirmation = getActiveConfirmation(uiState);
   const memoryOverlay = getMemoryOverlay(uiState);
+  const modelOverlay = getModelOverlay(uiState);
   const sessionsOverlay = getSessionsOverlay(uiState);
   const activeSessionId = snapshot?.session.id ?? null;
   const promptHistoryEntries = activeSessionId
@@ -147,10 +173,33 @@ export function App({
     }
   }, [memoryOverlay, snapshot]);
 
+  const handleModelSelected = useCallback((option: { providerId: string; model: string }) => {
+    if (!runtimeConfig || !sessionStore) {
+      return;
+    }
+
+    try {
+      applyModelSelection({
+        activeSnapshot: snapshot,
+        dispatch,
+        option,
+        runtimeConfig,
+        sessionStore,
+        setSnapshot,
+        setSessions,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      dispatch({ type: "status/set", value: `Error: ${message}` });
+    }
+  }, [runtimeConfig, sessionStore, snapshot]);
+
   useAppInput({
     activeConfirmation,
     activeSnapshot: snapshot,
     dispatch,
+    modelCatalog,
+    onModelSelected: handleModelSelected,
     sessionStore,
     sessions,
     setSessions,
@@ -166,9 +215,11 @@ export function App({
     onExitRequested: onExitRequested ?? exit,
     pendingProfileClearConfirmation: uiState.pendingProfileClearConfirmation,
     pendingResetConfirmation: uiState.pendingResetConfirmation,
+    runtimeConfig,
     sessionStore,
     setSessions,
     setSnapshot,
+    uiState,
   });
 
   useEffect(() => {
@@ -247,7 +298,9 @@ export function App({
   };
 
   const handlePromptSubmit = (next: string) => {
-    const isCommand = parseSlashCommand(next) !== null;
+    const command = parseSlashCommand(next);
+    const setupRequired = runtimeConfig?.getSetupState().setupRequired ?? false;
+    const shouldStoreInHistory = !command && uiState.setupInput.mode !== "awaiting-api-key" && !setupRequired;
 
     setPromptHistory((current) => {
       const nextSessionId = activeSessionId ?? current.sessionId;
@@ -255,12 +308,12 @@ export function App({
         return current;
       }
 
-      const sessionMessages = isCommand
-        ? current.sessionMessages
-        : {
+      const sessionMessages = shouldStoreInHistory
+        ? {
             ...current.sessionMessages,
             [nextSessionId]: [...(current.sessionMessages[nextSessionId] ?? []), next],
-          };
+          }
+        : current.sessionMessages;
 
       return {
         draft: "",
@@ -277,7 +330,7 @@ export function App({
     return <Text>{sanitizeSingleLineText(services.error, 240)}</Text>;
   }
 
-  if (!services.controller || !services.assistantProfileRepository || !sessionStore) {
+  if (!services.controller || !services.assistantProfileRepository || !runtimeConfig || !sessionStore) {
     return <Text>{uiState.statusMessage ? sanitizeSingleLineText(uiState.statusMessage, 240) : "Loading..."}</Text>;
   }
 
@@ -305,6 +358,19 @@ export function App({
         {uiState.overlay.kind === "help" ? (
           <Box marginBottom={1}>
             <HelpList />
+          </Box>
+        ) : null}
+        {modelOverlay ? (
+          <Box marginBottom={1}>
+            <ModelList
+              options={modelCatalog.flatMap((entry) => entry.models.map((model) => ({
+                providerId: entry.providerId,
+                model,
+              })))}
+              selectedIndex={modelOverlay.selectedIndex}
+              currentProvider={activeSnapshot.session.provider}
+              currentModel={activeSnapshot.session.model}
+            />
           </Box>
         ) : null}
         {memoryOverlay ? (

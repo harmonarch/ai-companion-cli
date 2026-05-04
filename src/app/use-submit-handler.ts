@@ -1,17 +1,19 @@
 import { useCallback, useRef, type Dispatch, type SetStateAction } from "react";
 import { handleAppCommand } from "#src/app/handle-app-command.js";
+import { formatSetupStatus, isSetupCommandAllowed } from "#src/app/setup-flow.js";
 import type { ChatController } from "#src/controller/chat-controller.js";
 import type { SessionSnapshot, SessionStore } from "#src/controller/session-store.js";
+import type { RuntimeConfigService } from "#src/infra/config/runtime-config-service.js";
 import type { AssistantProfileRepository } from "#src/infra/repositories/assistant-profile-repository.js";
 import { parseSlashCommand } from "#src/controller/slash-commands.js";
+import { getProvider } from "#src/providers/registry.js";
 import {
   appendTextMessageContent,
   type ChatMessage,
-  type MessageContent,
 } from "#src/types/chat.js";
 import type { SessionSummary } from "#src/types/session.js";
 import type { ToolConfirmationRequest, ToolExecutionRecord } from "#src/types/tool.js";
-import type { UiAction } from "#src/app/ui-state.js";
+import type { UiAction, UiState } from "#src/app/ui-state.js";
 
 interface UseSubmitHandlerOptions {
   activeSnapshot: SessionSnapshot | null;
@@ -21,9 +23,11 @@ interface UseSubmitHandlerOptions {
   onExitRequested(): void;
   pendingProfileClearConfirmation: boolean;
   pendingResetConfirmation: boolean;
+  runtimeConfig: RuntimeConfigService | null;
   sessionStore: SessionStore | null;
   setSessions: Dispatch<SetStateAction<SessionSummary[]>>;
   setSnapshot: Dispatch<SetStateAction<SessionSnapshot | null>>;
+  uiState: UiState;
 }
 
 export function useSubmitHandler({
@@ -34,14 +38,16 @@ export function useSubmitHandler({
   onExitRequested,
   pendingProfileClearConfirmation,
   pendingResetConfirmation,
+  runtimeConfig,
   sessionStore,
   setSessions,
   setSnapshot,
+  uiState,
 }: UseSubmitHandlerOptions) {
   const submitInFlightRef = useRef(false);
 
   return useCallback(async (value: string) => {
-    if (!activeSnapshot || !controller || !sessionStore || !assistantProfileRepository) {
+    if (!activeSnapshot || !controller || !sessionStore || !assistantProfileRepository || !runtimeConfig) {
       return;
     }
 
@@ -54,6 +60,11 @@ export function useSubmitHandler({
     try {
       const command = parseSlashCommand(value);
       if (command) {
+        if (runtimeConfig.getSetupState().setupRequired && !isSetupCommandAllowed(command)) {
+          dispatch({ type: "status/set", value: formatSetupStatus(runtimeConfig.getSetupState()) });
+          return;
+        }
+
         await handleAppCommand({
           activeSnapshot,
           assistantProfileRepository,
@@ -61,12 +72,52 @@ export function useSubmitHandler({
           dispatch,
           pendingProfileClearConfirmation,
           pendingResetConfirmation,
+          runtimeConfig,
           sessionStore,
           onExitRequested,
           setSnapshot,
           setSessions,
         });
         dispatch({ type: "input/set", value: "" });
+        return;
+      }
+
+      if (uiState.setupInput.mode === "awaiting-api-key") {
+        const provider = getProvider(uiState.setupInput.providerId);
+        if (!provider) {
+          throw new Error(`Unsupported provider: ${uiState.setupInput.providerId}`);
+        }
+
+        try {
+          await provider.validateApiKey(runtimeConfig.getConfig(), {
+            apiKey: value,
+            model: uiState.setupInput.model,
+          });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          dispatch({ type: "input/set", value: "" });
+          dispatch({
+            type: "status/set",
+            value: `Invalid API key for ${uiState.setupInput.providerId} / ${uiState.setupInput.model}: ${message}`,
+          });
+          return;
+        }
+
+        runtimeConfig.saveProviderApiKey({
+          providerId: uiState.setupInput.providerId,
+          apiKey: value,
+        });
+        dispatch({ type: "setup/input/clear" });
+        dispatch({ type: "input/set", value: "" });
+        dispatch({
+          type: "status/set",
+          value: `Saved API key for ${uiState.setupInput.providerId} / ${uiState.setupInput.model}.`,
+        });
+        return;
+      }
+
+      if (runtimeConfig.getSetupState().setupRequired) {
+        dispatch({ type: "status/set", value: formatSetupStatus(runtimeConfig.getSetupState()) });
         return;
       }
 
@@ -156,9 +207,11 @@ export function useSubmitHandler({
     onExitRequested,
     pendingProfileClearConfirmation,
     pendingResetConfirmation,
+    runtimeConfig,
     sessionStore,
     setSessions,
     setSnapshot,
+    uiState,
   ]);
 }
 

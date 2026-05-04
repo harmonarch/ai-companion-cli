@@ -24,7 +24,7 @@ export function PromptInput({
   onHistoryUp?(): void;
   onHistoryDown?(): void;
   disabled?: boolean;
-  disabledReason?: "streaming" | "confirm" | "sessions" | "memory" | "help";
+  disabledReason?: "streaming" | "confirm" | "model" | "sessions" | "memory" | "help";
 }) {
   const { stdin, isRawModeSupported } = useStdin();
   const { write } = useStdout();
@@ -262,12 +262,14 @@ export function PromptInput({
   );
 }
 
-function getPlaceholder(disabledReason?: "streaming" | "confirm" | "sessions" | "memory" | "help") {
+function getPlaceholder(disabledReason?: "streaming" | "confirm" | "model" | "sessions" | "memory" | "help") {
   switch (disabledReason) {
     case "streaming":
       return "Assistant is responding...";
     case "confirm":
       return "Approve or deny the tool request above";
+    case "model":
+      return "Select a model above";
     case "sessions":
       return "Select a session above";
     case "memory":

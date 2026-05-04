@@ -5,6 +5,7 @@ export type SlashCommand =
   | { type: "memory"; target?: string }
   | { type: "emotion"; target?: string }
   | { type: "profile"; target?: string }
+  | { type: "model"; target?: string }
   | { type: "reset"; target?: string }
   | { type: "help" }
   | { type: "exit" }
@@ -62,6 +63,12 @@ export const SLASH_COMMAND_SPECS = [
     usage: "/profile | /profile set <name|role|selfReference> <value> | /profile clear [confirm|cancel]",
     description: "view the assistant profile, set name/role/selfReference, or clear it",
     build: (target) => ({ type: "profile", target }),
+  },
+  {
+    name: "model",
+    usage: "/model",
+    description: "choose the active model and enter its API key if needed",
+    build: (target) => ({ type: "model", target }),
   },
   {
     name: "reset",

@@ -1,6 +1,8 @@
 import { useInput, type Key } from "ink";
 import type { Dispatch, SetStateAction } from "react";
+import { flattenModelCatalog } from "#src/components/ModelList.js";
 import type { SessionSnapshot, SessionStore } from "#src/controller/session-store.js";
+import type { ProviderCatalogEntry } from "#src/providers/registry.js";
 import type { MemoryRecord } from "#src/types/memory.js";
 import type { SessionSummary } from "#src/types/session.js";
 import type { UiAction, UiState, MemoryEditState, PendingConfirmation } from "#src/app/ui-state.js";
@@ -9,6 +11,8 @@ interface UseAppInputOptions {
   activeConfirmation: PendingConfirmation | null;
   activeSnapshot: SessionSnapshot | null;
   dispatch: Dispatch<UiAction>;
+  modelCatalog: ProviderCatalogEntry[];
+  onModelSelected(option: { providerId: string; model: string }): void;
   sessionStore: SessionStore | null;
   sessions: SessionSummary[];
   setSessions: Dispatch<SetStateAction<SessionSummary[]>>;
@@ -20,6 +24,8 @@ export function useAppInput({
   activeConfirmation,
   activeSnapshot,
   dispatch,
+  modelCatalog,
+  onModelSelected,
   sessionStore,
   sessions,
   setSessions,
@@ -34,6 +40,17 @@ export function useAppInput({
 
     if (uiState.overlay.kind === "help") {
       handleHelpInput(key, dispatch);
+      return;
+    }
+
+    if (uiState.overlay.kind === "model") {
+      handleModelInput({
+        dispatch,
+        key,
+        modelCatalog,
+        modelOverlay: uiState.overlay,
+        onModelSelected,
+      });
       return;
     }
 
@@ -95,6 +112,47 @@ function handleHelpInput(
   if (key.escape) {
     dispatch({ type: "overlay/close" });
   }
+}
+
+function handleModelInput({
+  dispatch,
+  key,
+  modelCatalog,
+  modelOverlay,
+  onModelSelected,
+}: {
+  dispatch: Dispatch<UiAction>;
+  key: Key;
+  modelCatalog: ProviderCatalogEntry[];
+  modelOverlay: Extract<UiState["overlay"], { kind: "model" }>;
+  onModelSelected(option: { providerId: string; model: string }): void;
+}) {
+  const options = flattenModelCatalog(modelCatalog);
+  const selected = options[modelOverlay.selectedIndex];
+
+  if (key.escape || options.length === 0) {
+    dispatch({ type: "overlay/close" });
+    return;
+  }
+
+  if (key.upArrow) {
+    dispatch({ type: "overlay/model/select", selectedIndex: Math.max(0, modelOverlay.selectedIndex - 1) });
+    return;
+  }
+
+  if (key.downArrow) {
+    dispatch({
+      type: "overlay/model/select",
+      selectedIndex: Math.min(Math.max(0, options.length - 1), modelOverlay.selectedIndex + 1),
+    });
+    return;
+  }
+
+  if (!key.return || !selected) {
+    return;
+  }
+
+  onModelSelected(selected);
 }
 
 function handleMemoryInput({
