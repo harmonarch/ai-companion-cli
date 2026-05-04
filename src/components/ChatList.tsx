@@ -50,11 +50,22 @@ export function ChatList({
         const executions = toolExecutionsByMessage.get(message.id) ?? [];
         const isLastMessage = index === messages.length - 1;
         const safeContent = sanitizeMultilineText(messageContentToPlainText(message.content), 8000);
+        const isUserMessage = message.role === "user";
 
         return (
-          <Box key={message.id} flexDirection="column" marginBottom={isLastMessage ? 0 : 1}>
+          <Box
+            key={message.id}
+            width="100%"
+            flexDirection="column"
+            alignItems={isUserMessage ? "flex-end" : "flex-start"}
+            marginBottom={isLastMessage ? 0 : 1}
+          >
             <Text>{color(label)}</Text>
-            <Box marginLeft={2} flexDirection="column">
+            <Box
+              flexDirection="column"
+              marginLeft={isUserMessage ? 0 : 2}
+              marginRight={isUserMessage ? 2 : 0}
+            >
               {message.role === "assistant" ? <MarkdownText content={safeContent} /> : <Text>{safeContent || " "}</Text>}
               {executions.map((execution) => (
                 <InlineToolState key={execution.id} execution={execution} />
