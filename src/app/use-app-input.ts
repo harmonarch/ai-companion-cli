@@ -92,16 +92,12 @@ function handleConfirmationInput(
   dispatch: Dispatch<UiAction>,
 ) {
   if (inputChar.toLowerCase() === "y") {
-    activeConfirmation.resolve(true);
-    dispatch({ type: "confirmations/shift" });
-    dispatch({ type: "status/set", value: "Tool execution approved." });
+    resolveConfirmation(activeConfirmation, dispatch, true);
     return;
   }
 
   if (inputChar.toLowerCase() === "n" || key.escape) {
-    activeConfirmation.resolve(false);
-    dispatch({ type: "confirmations/shift" });
-    dispatch({ type: "status/set", value: "Tool execution denied." });
+    resolveConfirmation(activeConfirmation, dispatch, false);
   }
 }
 
@@ -179,8 +175,7 @@ function handleMemoryInput({
 
   if (memoryEditState && selected) {
     if (key.escape) {
-      dispatch({ type: "overlay/memory/edit", value: null });
-      dispatch({ type: "status/set", value: "Canceled memory edit." });
+      cancelMemoryEdit(dispatch);
       return;
     }
 
@@ -202,9 +197,7 @@ function handleMemoryInput({
         }, sessionId);
         const nextSnapshot = sessionStore.loadSession(sessionId);
         setSnapshot((current) => current?.session.id === nextSnapshot.session.id ? nextSnapshot : current);
-        dispatch({ type: "overlay/memory/edit", value: null });
-        dispatch({ type: "overlay/memory/view", memoryId: memoryEditState.memoryId });
-        dispatch({ type: "status/set", value: "Memory updated." });
+        finishMemoryEdit(dispatch, memoryEditState.memoryId);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         dispatch({ type: "status/set", value: `Error: ${message}` });
@@ -241,14 +234,13 @@ function handleMemoryInput({
       sessionStore.deleteMemory(selected.id, sessionId);
       const nextSnapshot = sessionStore.loadSession(sessionId);
       setSnapshot((current) => current?.session.id === nextSnapshot.session.id ? nextSnapshot : current);
-      dispatch({ type: "overlay/memory/select", selectedIndex: clampListIndex(deletedIndex, nextSnapshot.memories.length) });
-      dispatch({ type: "overlay/memory/delete-confirm", memoryId: null });
-      dispatch({ type: "overlay/memory/view", memoryId: memoryOverlay.viewMemoryId === selected.id ? null : memoryOverlay.viewMemoryId });
-      dispatch({
-        type: "overlay/memory/edit",
-        value: (current) => current?.memoryId === selected.id ? null : current,
+      finishMemoryDeletion({
+        deletedIndex,
+        deletedMemoryId: selected.id,
+        dispatch,
+        nextMemoryCount: nextSnapshot.memories.length,
+        viewMemoryId: memoryOverlay.viewMemoryId,
       });
-      dispatch({ type: "status/set", value: `Deleted memory ${selected.id}.` });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       dispatch({ type: "overlay/memory/delete-confirm", memoryId: null });
@@ -281,9 +273,7 @@ function handleMemoryInput({
   }
 
   if (inputChar === "e" || inputChar === "E") {
-    dispatch({ type: "overlay/memory/delete-confirm", memoryId: null });
-    dispatch({ type: "overlay/memory/edit", value: createMemoryEditState(selected) });
-    dispatch({ type: "overlay/memory/view", memoryId: selected.id });
+    startMemoryEdit(dispatch, selected);
     return;
   }
 
@@ -369,9 +359,7 @@ function handleSessionListInput({
       }
 
       setSessions(nextSessions);
-      dispatch({ type: "overlay/sessions/select", selectedIndex: nextSelectedIndex });
-      dispatch({ type: "overlay/sessions/delete-confirm", sessionId: null });
-      dispatch({ type: "status/set", value: `Deleted ${selected.title}.` });
+      finishSessionDeletion(dispatch, nextSelectedIndex, selected.title);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       dispatch({ type: "overlay/sessions/delete-confirm", sessionId: null });
@@ -408,14 +396,81 @@ function handleSessionListInput({
   }
 
   try {
-    dispatch({ type: "overlay/sessions/delete-confirm", sessionId: null });
     setSnapshot(sessionStore.loadSession(selected.id));
-    dispatch({ type: "overlay/close" });
-    dispatch({ type: "status/set", value: `Switched to ${selected.title}.` });
+    finishSessionSelection(dispatch, selected.title);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     dispatch({ type: "status/set", value: `Error: ${message}` });
   }
+}
+
+function resolveConfirmation(
+  activeConfirmation: PendingConfirmation,
+  dispatch: Dispatch<UiAction>,
+  approved: boolean,
+) {
+  activeConfirmation.resolve(approved);
+  dispatch({ type: "confirmations/shift" });
+  dispatch({
+    type: "status/set",
+    value: approved ? "Tool execution approved." : "Tool execution denied.",
+  });
+}
+
+function cancelMemoryEdit(dispatch: Dispatch<UiAction>) {
+  dispatch({ type: "overlay/memory/edit", value: null });
+  dispatch({ type: "status/set", value: "Canceled memory edit." });
+}
+
+function finishMemoryEdit(dispatch: Dispatch<UiAction>, memoryId: string) {
+  dispatch({ type: "overlay/memory/edit", value: null });
+  dispatch({ type: "overlay/memory/view", memoryId });
+  dispatch({ type: "status/set", value: "Memory updated." });
+}
+
+function startMemoryEdit(dispatch: Dispatch<UiAction>, memory: MemoryRecord) {
+  dispatch({ type: "overlay/memory/delete-confirm", memoryId: null });
+  dispatch({ type: "overlay/memory/edit", value: createMemoryEditState(memory) });
+  dispatch({ type: "overlay/memory/view", memoryId: memory.id });
+}
+
+function finishMemoryDeletion({
+  deletedIndex,
+  deletedMemoryId,
+  dispatch,
+  nextMemoryCount,
+  viewMemoryId,
+}: {
+  deletedIndex: number;
+  deletedMemoryId: string;
+  dispatch: Dispatch<UiAction>;
+  nextMemoryCount: number;
+  viewMemoryId: string | null;
+}) {
+  dispatch({ type: "overlay/memory/select", selectedIndex: clampListIndex(deletedIndex, nextMemoryCount) });
+  dispatch({ type: "overlay/memory/delete-confirm", memoryId: null });
+  dispatch({ type: "overlay/memory/view", memoryId: viewMemoryId === deletedMemoryId ? null : viewMemoryId });
+  dispatch({
+    type: "overlay/memory/edit",
+    value: (current) => current?.memoryId === deletedMemoryId ? null : current,
+  });
+  dispatch({ type: "status/set", value: `Deleted memory ${deletedMemoryId}.` });
+}
+
+function finishSessionDeletion(
+  dispatch: Dispatch<UiAction>,
+  selectedIndex: number,
+  title: string,
+) {
+  dispatch({ type: "overlay/sessions/select", selectedIndex });
+  dispatch({ type: "overlay/sessions/delete-confirm", sessionId: null });
+  dispatch({ type: "status/set", value: `Deleted ${title}.` });
+}
+
+function finishSessionSelection(dispatch: Dispatch<UiAction>, title: string) {
+  dispatch({ type: "overlay/sessions/delete-confirm", sessionId: null });
+  dispatch({ type: "overlay/close" });
+  dispatch({ type: "status/set", value: `Switched to ${title}.` });
 }
 
 function applyTextEditKey(

@@ -60,58 +60,28 @@ export function useSubmitHandler({
     try {
       const command = parseSlashCommand(value);
       if (command) {
-        if (runtimeConfig.getSetupState().setupRequired && !isSetupCommandAllowed(command)) {
-          dispatch({ type: "status/set", value: formatSetupStatus(runtimeConfig.getSetupState()) });
-          return;
-        }
-
-        await handleAppCommand({
+        await submitCommand({
           activeSnapshot,
           assistantProfileRepository,
           command,
           dispatch,
+          onExitRequested,
           pendingProfileClearConfirmation,
           pendingResetConfirmation,
           runtimeConfig,
           sessionStore,
-          onExitRequested,
-          setSnapshot,
           setSessions,
+          setSnapshot,
         });
-        dispatch({ type: "input/set", value: "" });
         return;
       }
 
       if (uiState.setupInput.mode === "awaiting-api-key") {
-        const provider = getProvider(uiState.setupInput.providerId);
-        if (!provider) {
-          throw new Error(`Unsupported provider: ${uiState.setupInput.providerId}`);
-        }
-
-        try {
-          await provider.validateApiKey(runtimeConfig.getConfig(), {
-            apiKey: value,
-            model: uiState.setupInput.model,
-          });
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          dispatch({ type: "input/set", value: "" });
-          dispatch({
-            type: "status/set",
-            value: `Invalid API key for ${uiState.setupInput.providerId} / ${uiState.setupInput.model}: ${message}`,
-          });
-          return;
-        }
-
-        runtimeConfig.saveProviderApiKey({
-          providerId: uiState.setupInput.providerId,
-          apiKey: value,
-        });
-        dispatch({ type: "setup/input/clear" });
-        dispatch({ type: "input/set", value: "" });
-        dispatch({
-          type: "status/set",
-          value: `Saved API key for ${uiState.setupInput.providerId} / ${uiState.setupInput.model}.`,
+        await submitApiKey({
+          dispatch,
+          runtimeConfig,
+          setupInput: uiState.setupInput,
+          value,
         });
         return;
       }
@@ -121,78 +91,15 @@ export function useSubmitHandler({
         return;
       }
 
-      dispatch({ type: "input/set", value: "" });
-      dispatch({ type: "status/set", value: undefined });
-      dispatch({ type: "reset-confirmation/set", value: false });
-      dispatch({ type: "profile-clear-confirmation/set", value: false });
-      dispatch({ type: "streaming/set", value: true });
-
-      let streamingCleared = false;
-      const clearStreaming = () => {
-        if (streamingCleared) {
-          return;
-        }
-        streamingCleared = true;
-        dispatch({ type: "streaming/set", value: false });
-      };
-
-      try {
-        await controller.sendMessage(activeSnapshot.session, value, {
-          onUserMessage(message) {
-            appendMessage(setSnapshot, message);
-          },
-          onAssistantMessage(message) {
-            appendMessage(setSnapshot, message);
-          },
-          onAssistantChunk(messageId, chunk) {
-            setSnapshot((current) => {
-              if (!current) {
-                return current;
-              }
-
-              return {
-                ...current,
-                messages: current.messages.map((message) =>
-                  message.id === messageId
-                    ? { ...message, content: appendTextMessageContent(message.content, chunk) }
-                    : message,
-                ),
-              };
-            });
-          },
-          onAssistantReady() {
-            clearStreaming();
-          },
-          onAssistantCompleted(messageId, content) {
-            setSnapshot((current) => {
-              if (!current) {
-                return current;
-              }
-
-              const nextSnapshot = sessionStore.loadSession(current.session.id);
-              return {
-                ...nextSnapshot,
-                messages: nextSnapshot.messages.map((message) =>
-                  message.id === messageId ? { ...message, content } : message,
-                ),
-              };
-            });
-            setSessions(sessionStore.listSessions());
-          },
-          onToolExecution(execution) {
-            upsertToolExecution(setSnapshot, execution);
-          },
-          onSessionUpdated(session) {
-            setSnapshot((current) => (current ? { ...current, session } : current));
-            setSessions(sessionStore.listSessions());
-          },
-          requestConfirmation(request) {
-            return requestToolConfirmation(dispatch, request);
-          },
-        });
-      } finally {
-        clearStreaming();
-      }
+      await submitMessage({
+        activeSnapshot,
+        controller,
+        dispatch,
+        sessionStore,
+        setSessions,
+        setSnapshot,
+        value,
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       dispatch({ type: "status/set", value: `Error: ${message}` });
@@ -213,6 +120,186 @@ export function useSubmitHandler({
     setSnapshot,
     uiState,
   ]);
+}
+
+async function submitCommand({
+  activeSnapshot,
+  assistantProfileRepository,
+  command,
+  dispatch,
+  onExitRequested,
+  pendingProfileClearConfirmation,
+  pendingResetConfirmation,
+  runtimeConfig,
+  sessionStore,
+  setSessions,
+  setSnapshot,
+}: {
+  activeSnapshot: SessionSnapshot;
+  assistantProfileRepository: AssistantProfileRepository;
+  command: NonNullable<ReturnType<typeof parseSlashCommand>>;
+  dispatch: Dispatch<UiAction>;
+  onExitRequested(): void;
+  pendingProfileClearConfirmation: boolean;
+  pendingResetConfirmation: boolean;
+  runtimeConfig: RuntimeConfigService;
+  sessionStore: SessionStore;
+  setSessions: Dispatch<SetStateAction<SessionSummary[]>>;
+  setSnapshot: Dispatch<SetStateAction<SessionSnapshot | null>>;
+}) {
+  if (runtimeConfig.getSetupState().setupRequired && !isSetupCommandAllowed(command)) {
+    dispatch({ type: "status/set", value: formatSetupStatus(runtimeConfig.getSetupState()) });
+    return;
+  }
+
+  await handleAppCommand({
+    activeSnapshot,
+    assistantProfileRepository,
+    command,
+    dispatch,
+    pendingProfileClearConfirmation,
+    pendingResetConfirmation,
+    runtimeConfig,
+    sessionStore,
+    onExitRequested,
+    setSnapshot,
+    setSessions,
+  });
+  dispatch({ type: "input/set", value: "" });
+}
+
+async function submitApiKey({
+  dispatch,
+  runtimeConfig,
+  setupInput,
+  value,
+}: {
+  dispatch: Dispatch<UiAction>;
+  runtimeConfig: RuntimeConfigService;
+  setupInput: Extract<UiState["setupInput"], { mode: "awaiting-api-key" }>;
+  value: string;
+}) {
+  const provider = getProvider(setupInput.providerId);
+  if (!provider) {
+    throw new Error(`Unsupported provider: ${setupInput.providerId}`);
+  }
+
+  try {
+    await provider.validateApiKey(runtimeConfig.getConfig(), {
+      apiKey: value,
+      model: setupInput.model,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    dispatch({ type: "input/set", value: "" });
+    dispatch({
+      type: "status/set",
+      value: `Invalid API key for ${setupInput.providerId} / ${setupInput.model}: ${message}`,
+    });
+    return;
+  }
+
+  runtimeConfig.saveProviderApiKey({
+    providerId: setupInput.providerId,
+    apiKey: value,
+  });
+  dispatch({ type: "setup/input/clear" });
+  dispatch({ type: "input/set", value: "" });
+  dispatch({
+    type: "status/set",
+    value: `Saved API key for ${setupInput.providerId} / ${setupInput.model}.`,
+  });
+}
+
+async function submitMessage({
+  activeSnapshot,
+  controller,
+  dispatch,
+  sessionStore,
+  setSessions,
+  setSnapshot,
+  value,
+}: {
+  activeSnapshot: SessionSnapshot;
+  controller: ChatController;
+  dispatch: Dispatch<UiAction>;
+  sessionStore: SessionStore;
+  setSessions: Dispatch<SetStateAction<SessionSummary[]>>;
+  setSnapshot: Dispatch<SetStateAction<SessionSnapshot | null>>;
+  value: string;
+}) {
+  dispatch({ type: "input/set", value: "" });
+  dispatch({ type: "status/set", value: undefined });
+  dispatch({ type: "reset-confirmation/set", value: false });
+  dispatch({ type: "profile-clear-confirmation/set", value: false });
+  dispatch({ type: "streaming/set", value: true });
+
+  let streamingCleared = false;
+  const clearStreaming = () => {
+    if (streamingCleared) {
+      return;
+    }
+    streamingCleared = true;
+    dispatch({ type: "streaming/set", value: false });
+  };
+
+  try {
+    await controller.sendMessage(activeSnapshot.session, value, {
+      onUserMessage(message) {
+        appendMessage(setSnapshot, message);
+      },
+      onAssistantMessage(message) {
+        appendMessage(setSnapshot, message);
+      },
+      onAssistantChunk(messageId, chunk) {
+        setSnapshot((current) => {
+          if (!current) {
+            return current;
+          }
+
+          return {
+            ...current,
+            messages: current.messages.map((message) =>
+              message.id === messageId
+                ? { ...message, content: appendTextMessageContent(message.content, chunk) }
+                : message,
+            ),
+          };
+        });
+      },
+      onAssistantReady() {
+        clearStreaming();
+      },
+      onAssistantCompleted(messageId, content) {
+        setSnapshot((current) => {
+          if (!current) {
+            return current;
+          }
+
+          const nextSnapshot = sessionStore.loadSession(current.session.id);
+          return {
+            ...nextSnapshot,
+            messages: nextSnapshot.messages.map((message) =>
+              message.id === messageId ? { ...message, content } : message,
+            ),
+          };
+        });
+        setSessions(sessionStore.listSessions());
+      },
+      onToolExecution(execution) {
+        upsertToolExecution(setSnapshot, execution);
+      },
+      onSessionUpdated(session) {
+        setSnapshot((current) => (current ? { ...current, session } : current));
+        setSessions(sessionStore.listSessions());
+      },
+      requestConfirmation(request) {
+        return requestToolConfirmation(dispatch, request);
+      },
+    });
+  } finally {
+    clearStreaming();
+  }
 }
 
 function appendMessage(
