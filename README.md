@@ -1,565 +1,190 @@
 # AI Companion CLI
 
-## 项目概述
-
-AI Companion CLI 是一款以终端为主要使用场景的 AI 聊天应用，产品核心聚焦在 **聊天体验**。
-
-当前版本的设计目标：
-
-- 在终端中提供自然的多轮对话体验
-- 支持 AI 流式输出
-- 采用 LangChain + LangGraph 完成智能体编排
-- 支持工具调用，并清晰展示执行状态
-- 支持多会话管理、会话恢复与运行状态恢复
-- 支持国内主流模型提供商接入
-- 预留宠物形象模块，但不进入首版交付范围
-
-本 README 作为当前阶段的统一定稿文档，`arch-tobedetermined.md` 中的待定项已全部收口到这里。
-
----
-
-## 产品定位
-
-这是一个 **聊天优先** 的终端 AI 应用。
-
-设计原则：
-
-- 聊天是核心交互模型
-- UI 决策优先服务于对话效率、可读性和流畅度
-- 智能体编排服务于聊天质量、工具协作和任务完成
-- 工具执行状态需要可见，但不能压过聊天主线
-- 宠物动画作为辅助能力，后续再接入
-
----
-
-## 已确认的最终方案
-
-### 核心产品与架构决策
-
-1. 持久化采用 **文件存储（JSON / JSONL）**
-2. 首版 **不上宠物模块**，但预留 `PetWidget` 接口与布局位置
-3. 首版 **不引入 `xstate`**
-4. 终端样式库采用 **`picocolors`**
-5. 首版纳入 **最小工具执行可视化**
-6. 文件存储采用 **`FileStore`**，通过临时文件替换实现原子写入
-7. 首版支持多个国内模型提供商，保留统一 provider 抽象
-8. 首版 provider 覆盖：**DeepSeek / MiniMax / Kimi / GLM**
-9. 多模型接入采用 **统一兼容层 + provider 专属补充 adapter**
-10. 工具调用采用 **按 provider 能力开关** 的策略
-11. 首版将 **run 和 tool execution 数据持久化到文件存储**
-12. 共用一套核心 LangGraph，provider 差异通过 strategy / adapter 层注入
-13. 一个会话固定绑定一个 `provider + model`
-14. 配置采用 **本地配置文件 + 环境变量覆盖**
-15. 默认执行 `ai-companion` 直接进入聊天界面
-16. 首版采用 **最小高频 slash commands 集合**
-17. 启动时恢复会话列表与 checkpoint 元信息，恢复执行必须由用户显式触发
-18. 首版工具执行状态 **内联到聊天消息流中展示**
-19. 采用 **LangChain / LangGraph 负责编排，自建 adapter 层统一 provider 差异**
-20. 首版工具范围采用 **最小受控工具集**
-21. 工具执行权限采用 **按风险分级确认**
-22. 本地配置文件格式采用 **TOML**
-23. CLI 命令解析框架采用 **`cac`**
-24. 开发使用 **`tsx`**，发布构建使用 **`tsup`**
-25. 持久化访问层采用 **FileStore + Repository 封装**
-26. 数据按目录组织：sessions、messages、runs、tool-executions 各一个子目录
-27. 首版支持 **基础 Markdown 渲染**
-28. 首版采用 **自适应布局：宽终端双栏，窄终端单栏**
-29. checkpoint 恢复入口放在 **`/sessions` 和会话切换流程** 中，不单独引入 `/resume`
-30. provider / model 能力矩阵采用 **本地静态能力矩阵为主，允许配置覆盖**
-31. 配置优先级采用：**环境变量 > 本地 TOML > 硬编码默认值**
-
-### 存储相关补充规则
-
-后续涉及持久化的具体问题，统一沿用推荐方向：
-
-- 文件存储（JSON / JSONL）
-- `FileStore` 原子写入
-- Repository 封装
-- 按目录组织：sessions、messages、runs、tool-executions
-
-不再为持久化方案单独展开新一轮选型。
-
----
-
-## 最终技术栈
-
-### 基础技术栈
-
-- **语言**：TypeScript
-- **运行时**：Node.js 20+
-- **终端 UI**：Ink
-- **编排层**：LangChain + LangGraph
-- **CLI 命令解析**：cac
-- **数据校验**：Zod
-- **终端颜色**：picocolors
-- **本地存储**：文件存储（JSON / JSONL）
-- **存储实现**：FileStore（原子写入）
-- **存储访问方式**：Repository 封装
-- **本地配置格式**：TOML
-- **开发运行**：tsx
-- **构建发布**：tsup
-
-### Provider 范围
-
-首版支持以下 provider：
-
-- DeepSeek
-- MiniMax
-- Kimi
-- GLM
-
-### Provider 集成原则
-
-- provider 层对上暴露统一接口
-- 兼容接口优先通过统一兼容层接入
-- provider 特有能力通过专属 adapter 补充
-- LangGraph 不直接耦合某一家 provider SDK
-- tool calling、streaming、structured output 等能力由 capability matrix 决定是否开放
-
----
-
-## 系统架构
+AI Companion CLI 是一个以终端为主的聊天应用。当前实现聚焦在多轮对话、流式输出、工具调用可视化，以及基于文件的本地持久化。
+
+## 当前状态
+
+当前源码已经实现的核心能力：
+
+- 终端内多轮聊天
+- Assistant 流式输出
+- LangGraph 驱动的 `agent -> tools -> agent` 循环
+- 内置工具调用与执行状态内联展示
+- 基于文件的会话、消息、run、tool execution 持久化
+- 会话列表、会话切换与最近会话恢复
+- memory、emotion、assistant profile 相关运行时支持
+
+当前源码里的边界也需要明确：
+
+- 运行时 provider 当前只接入了 `deepseek`
+- 没有 `test` 脚本，也没有测试运行器配置
+- 没有 `lint` 脚本
+- `npm run typecheck` 是目前唯一内置的校验命令
+
+## 常用命令
+
+- `npm run dev` —— 通过 `tsx src/cli.ts` 以开发模式运行 CLI
+- `npm run build` —— 使用 `tsup` 打包 CLI，并将 prompt 模板复制到 `dist/templates/`
+- `npm run start` —— 从 `dist/cli.js` 运行已构建的 CLI
+- `npm run typecheck` —— 使用 `tsc --noEmit` 运行 TypeScript 类型检查
+
+## 技术栈
+
+- TypeScript
+- Node.js 20+
+- Ink
+- LangChain
+- LangGraph
+- cac
+- Zod
+- picocolors
+- TOML
+- tsx
+- tsup
+
+## 运行时架构
+
+应用的主要执行链路如下：
+
+1. `src/cli.ts`
+   - 使用 `cac` 解析命令行参数
+   - 检测当前终端是否为交互式 TTY
+   - 渲染 Ink 应用，并在交互式终端中启用 `alternateScreen`
+2. `src/app.tsx`
+   - 持有顶层 UI 状态
+   - 解析初始会话
+   - 渲染聊天区、帮助面板、会话列表、memory 面板和状态栏
+3. `src/app/create-app-services.ts`
+   - 装配配置加载、文件存储、repositories、memory/emotion 服务、assistant profile、session store 和 chat controller
+4. `src/app/use-submit-handler.ts`
+   - 将输入分流到 slash command 处理或正常聊天回合
+   - 把流式返回和工具状态回写到当前会话快照
+5. `src/controller/chat-controller.ts`
+   - 负责单轮聊天生命周期
+   - 持久化用户消息
+   - 创建 assistant 占位消息与 run 记录
+   - 构建 runtime tools
+   - 选择历史消息并驱动 graph 执行
+   - 持久化工具执行结果
+   - 更新 memory 与 emotion 状态
+6. `src/graph/chat-graph.ts`
+   - 构建 `agent -> tools -> agent` 状态图
+   - 将持久化消息转换为 LangChain 消息对象
+   - 将运行时输出转换为统一事件流
+7. `src/tools/index.ts`
+   - 注册内置工具
+   - 为中风险工具发起确认
+   - 持久化工具执行
+   - 将工具结果回灌到 assistant 消息流
+8. `src/controller/session-store.ts`
+   - 从 session、message、run、tool execution、memory、emotion 数据重建 UI 快照
+
+## 当前支持的 slash commands
+
+支持的 slash commands 定义在 `src/controller/slash-commands.ts`，执行逻辑在 `src/app/handle-app-command.ts`。
+
+当前支持：
+
+- `/new`
+- `/sessions`
+- `/switch <n|id>`
+- `/memory`
+- `/emotion`
+- `/profile`
+- `/reset`
+- `/help`
+- `/exit`
+
+## 当前内置工具
+
+内置工具定义在 `src/tools/index.ts`：
+
+- `read_file`
+- `list_dir`
+- `search_text`
+- `http_fetch`
+- `local_time`
 
-### 总体分层
+工具执行模型：
 
-```text
-Terminal App
-├── CLI Entry (cac)
-├── Ink UI
-│   ├── SessionList
-│   ├── ChatList
-│   ├── PromptInput
-│   ├── StatusBar
-│   ├── InlineToolState
-│   └── PetWidget (reserved)
-├── App Controller
-│   ├── session store
-│   ├── event adapter
-│   ├── stream buffer
-│   └── resume orchestrator
-├── Graph Runtime
-│   ├── core chat graph
-│   ├── tool orchestration
-│   ├── checkpoint manager
-│   └── provider strategy hooks
-├── Provider Layer
-│   ├── compatibility adapter
-│   ├── deepseek adapter
-│   ├── minimax adapter
-│   ├── kimi adapter
-│   └── glm adapter
-└── Infra
-    ├── config
-    ├── storage
-    └── repositories
-```
+- 低风险工具直接执行
+- 中风险工具先请求用户确认
+- 每次工具执行都会被持久化
+- 工具状态会以内联形式显示在聊天消息流中
 
-### 各层职责
+## Provider 实现现状
 
-#### 1. CLI Entry
+- Provider 抽象定义在 `src/providers/types.ts`
+- provider 注册表在 `src/providers/registry.ts`
+- 当前仅注册 `deepseek`
+- `src/providers/deepseek-provider.ts` 负责具体 provider runtime
+- `src/providers/langchain-runtime.ts` 负责把 LangChain 模型行为适配到仓库内部 runtime 接口
+- `src/providers/capability-matrix.ts` 保存静态能力矩阵
 
-负责：
+## 配置
 
-- 解析命令行参数
-- 处理少量管理型子命令
-- 默认进入聊天界面
+配置加载逻辑位于 `src/infra/config/load-config.ts`。
 
-#### 2. Ink UI
+优先级如下：
 
-负责：
+1. 环境变量
+2. TOML 配置文件：`AI_COMPANION_CONFIG_PATH` 指定路径，或 `~/.config/ai-companion/config.toml`
+3. 硬编码默认值
 
-- 聊天消息渲染
-- 输入框交互
-- 会话列表展示
-- 状态栏展示
-- 工具执行状态内联展示
-- 窄终端 / 宽终端布局切换
-- 为后续 `PetWidget` 预留插槽
+当前涉及的关键环境变量包括：
 
-#### 3. App Controller
+- `AI_COMPANION_PROVIDER`
+- `AI_COMPANION_MODEL`
+- `AI_COMPANION_STORAGE_PATH`
+- `AI_COMPANION_HISTORY_MAX_MESSAGES`
+- `AI_COMPANION_MEMORY_ENABLED`
+- `AI_COMPANION_MEMORY_USER_ID`
+- `AI_COMPANION_MEMORY_AUTO_WRITE_LOW_RISK`
+- `DEEPSEEK_API_KEY`
+- `DEEPSEEK_BASE_URL`
 
-负责：
+## 持久化模型
 
-- 把 graph 事件转成 UI 可消费状态
-- 合并和节流流式输出
-- 管理当前会话上下文
-- 统一工具执行事件结构
-- 协调恢复逻辑与界面更新
+当前持久化通过 `src/infra/storage/file-store.ts` 实现，采用文件存储，不是 SQLite。
 
-#### 4. Graph Runtime
+核心特点：
 
-负责：
+- 以存储根目录为边界做路径解析
+- JSON 文件通过临时文件替换实现原子写入
+- JSONL 用于追加式记录
 
-- 聊天流程编排
-- 工具调用流程
-- checkpoint 生成与恢复
-- 中断、重试、继续执行
-- 根据 provider 能力决定可走的节点路径
+默认存储目录为 `~/.ai-companion`，也可以通过配置覆盖。
 
-#### 5. Provider Layer
-
-负责：
-
-- 鉴权处理
-- base URL 管理
-- provider 参数映射
-- streaming 事件统一
-- tool calling 能力适配
-- provider 特殊响应结构归一化
-
-#### 6. Infra
-
-负责：
-
-- 本地配置读取
-- 文件存储
-- Repository 封装
-
----
-
-## Provider 与模型策略
-
-### 统一抽象
-
-对上层暴露统一接口，至少覆盖以下能力：
-
-- 发起普通聊天请求
-- 发起流式聊天请求
-- 读取模型能力信息
-- 判断是否支持工具调用
-- 标准化工具调用结果
-- 输出统一的事件流给 controller / graph 使用
-
-### 接入策略
-
-采用：
-
-- **统一兼容层**：承接能复用的共性能力
-- **provider 专属 adapter**：承接参数映射、响应差异、异常差异、能力差异
-
-### 能力矩阵
-
-provider / model 能力矩阵采用：
-
-- 本地静态 manifest 为主
-- 用户可通过配置做少量覆盖
-- 不依赖完整运行时动态探测
-
-建议能力字段至少包括：
-
-- `supportsStreaming`
-- `supportsToolCalling`
-- `supportsStructuredOutput`
-- `supportsCheckpointResume`
-- `maxContextTokens`
-- `defaultTemperature`
-- `allowedTools`
-
-### 会话与模型关系
-
-- 一个会话固定绑定一个 `provider + model`
-- 切换模型通过新建会话或复制会话实现
-- 不在同一个会话中途切换 provider / model
-
----
-
-## LangGraph 运行时策略
-
-### 核心原则
-
-- 共用一套核心 chat graph
-- provider 差异通过 strategy / adapter 层注入
-- graph 只表达核心流程，不堆积 provider 分支逻辑
-
-### Checkpoint 策略
-
-首版即支持：
-
-- LangGraph checkpoint 持久化到文件存储
-- 会话恢复与运行恢复分离处理
-- 启动时恢复 checkpoint 元信息
-- 是否继续执行由用户显式触发
-
-### 恢复入口
-
-- 恢复入口放在 `/sessions` 和会话切换流程中
-- 不单独提供 `/resume`
-- 不做自动恢复未完成 run
-
----
-
-## 工具系统策略
-
-### 首版工具范围
-
-首版采用 **最小受控工具集**，建议范围：
-
-- 读取本地文件
-- 列目录
-- 文本搜索
-- HTTP 内容获取
-
-### 工具调用开放策略
-
-- 按 provider / model 能力开关工具调用
-- 支持稳定 tool calling 的模型开放工具能力
-- 其余模型先提供聊天能力
-
-### 权限确认策略
-
-采用风险分级：
-
-- **低风险只读工具**：默认直接执行
-- **中高风险工具**：执行前必须确认
-
-聊天流中需要内联展示：
-
-- 工具名
-- 动作摘要
-- 风险级别
-- 执行中 / 已完成 / 出错
-- 结果摘要
-
-### 工具状态展示方式
-
-- 首版工具状态内联到聊天消息流中
-- 不在首版做完整独立 ToolPanel
-- `ToolPanel` 只在架构与目录结构中预留
-
----
-
-## UI 与交互设计
-
-### 默认入口
-
-默认执行：
-
-```bash
-ai-companion
-```
-
-行为：
-
-- 直接进入聊天界面
-- 不先进入菜单页
-- 配置、provider 管理、会话管理通过子命令 + slash commands 完成
-
-### 布局策略
-
-采用自适应布局：
-
-- **宽终端**：双栏布局
-  - 左侧：会话列表 / 状态信息
-  - 右侧：主聊天区
-- **窄终端**：单栏布局
-  - 会话列表通过命令或临时区块打开
-
-### Markdown 渲染
-
-首版支持基础 Markdown：
-
-- 段落
-- 标题
-- 列表
-- 引用
-- 行内代码
-- 代码块
-
-### 流式输出策略
-
-- token chunk 先进入 buffer
-- 以小周期节流刷新 UI
-- 避免每个 token 触发一次重渲染
-- 流结束后再完成消息定稿
-
-### 宠物模块策略
-
-- 首版不交付宠物模块
-- UI 与布局预留 `PetWidget` 插槽
-- 后续接入时不改主架构
-
----
-
-## Slash Commands
-
-首版采用最小高频集合，建议包含：
-
-- `/new`：新建会话
-- `/sessions`：查看会话列表，并承接可恢复会话入口
-- `/switch`：切换会话
-- `/help`：查看命令说明
-- `/exit`：退出聊天
-- `/clear`：清空当前显示上下文或开启新轮次（TODO）
-- `/model`：查看当前 provider / model（TODO）
-- `/retry`：重试上一轮回答（TODO）
-
-原则：
-
-- 高频、强相关操作留在聊天内
-- 配置和 provider 管理继续走子命令
-
----
-
-## 配置与密钥管理
-
-### 配置来源
-
-- 硬编码默认值
-- 本地 TOML 配置
-- 环境变量
-
-### 优先级
-
-最终优先级：
-
-1. **环境变量**
-2. **本地 TOML 配置**
-3. **硬编码默认值**
-
-额外规则：
-
-- API Key 通过环境变量读取
-- capability override 优先于内置能力矩阵
-
-### 建议配置内容
-
-本地 TOML 建议保存：
-
-- 默认 provider
-- 默认 model
-- provider base URL
-- UI 偏好
-- 工具权限偏好
-- capability override
-
----
-
-## 存储设计
-
-### 存储方式
-
-采用：
-
-- `FileStore`（原子写入）
-- JSON / JSONL 文件
-- Repository 封装
-
-Repository 包括：
-
-- `sessionRepository`
-- `messageRepository`
-- `runRepository`
-- `toolExecutionRepository`
-
-### 存储目录结构
-
-按目录组织，默认路径 `~/.ai-companion`：
+当前主要目录结构：
 
 - `sessions/` —— 每个 session 一个 JSON 文件
 - `messages/` —— 每个 session 一个 JSONL 文件
 - `runs/` —— 每个 run 一个 JSON 文件
 - `tool-executions/` —— 每个 session 一个 JSONL 文件
 
-这套结构适合当前阶段的：
+## Prompt 与构建注意点
 
-- 多 provider 差异
-- 工具执行记录
-- 会话历史查询
+- Prompt 加载逻辑位于 `src/prompts/loader.ts`
+- 内置 prompt 模板位于 `src/prompts/templates/`
+- 构建时必须把模板复制到 `dist/templates/`
+- 修改构建流程时，不能删掉 `package.json` 中的模板复制步骤，否则构建后的 CLI 无法加载 prompt
 
----
+## 建议先读的文件
 
-## 推荐目录结构
+- `src/cli.ts`
+- `src/app.tsx`
+- `src/app/create-app-services.ts`
+- `src/app/use-submit-handler.ts`
+- `src/controller/chat-controller.ts`
+- `src/controller/session-store.ts`
+- `src/controller/slash-commands.ts`
+- `src/app/handle-app-command.ts`
+- `src/graph/chat-graph.ts`
+- `src/tools/index.ts`
+- `src/providers/registry.ts`
+- `src/infra/config/load-config.ts`
+- `src/infra/storage/file-store.ts`
 
-```text
-src/
-  cli.ts
-  app.tsx
-  app/
-    create-app-services.ts
-    initial-session.ts
-    input-handler.ts
-    submit-handler.ts
-  components/
-    ChatList.tsx
-    PromptInput.tsx
-    SessionList.tsx
-    HelpPanel.tsx
-    StatusBar.tsx
-    InlineToolState.tsx
-    MarkdownRenderer.tsx
-  controller/
-    chat-controller.ts
-    session-store.ts
-    slash-commands.ts
-    history-selection.ts
-    stream-buffer.ts
-  graph/
-    chat-graph.ts
-  tools/
-  providers/
-    types.ts
-    capability-matrix.ts
-    deepseek-provider.ts
-  prompts/
-    loader.ts
-    templates/
-  infra/
-    config/
-      load-config.ts
-    storage/
-      file-store.ts
-    repositories/
-  types/
-```
+## 文档使用说明
 
----
-
-## 首版范围
-
-### 首版必须交付
-
-- 终端聊天主界面
-- 多轮对话
-- AI 流式输出
-- 多 provider 支持：DeepSeek / MiniMax / Kimi / GLM
-- provider 抽象与能力矩阵
-- LangGraph 核心聊天 graph
-- LangGraph checkpoint 持久化到文件存储
-- 会话列表与显式恢复入口
-- 最小受控工具集
-- 工具状态内联展示
-- 风险分级权限确认
-- 文件存储本地持久化
-- 基础 Markdown 渲染
-- 自适应布局
-- 最小高频 slash commands
-
-### 首版暂不交付
-
-- 宠物模块正式功能
-- 完整独立 ToolPanel
-- 同会话内动态切换 provider / model
-- 自动恢复未完成 run
-- 全量动态图形化能力探测
-- 重型动画系统
-
----
-
-## 实现原则
-
-- UI 与编排解耦
-- provider 差异收敛在 adapter 层
-- graph 负责流程，controller 负责状态整理，Ink 负责展示
-- 工具执行可见，但聊天主线始终优先
-- 会话恢复与运行恢复分层处理
-- 先做稳定的聊天闭环，再逐步扩展体验层能力
-
----
-
-## 当前推荐基础组合
-
-最终基础组合：
-
-- **TypeScript + Node.js 20+ + Ink + LangChain + LangGraph + FileStore + cac + picocolors + TOML + tsx + tsup**
-
-这套组合适合当前这个以聊天为核心、支持国内多模型、多会话、工具调用和运行恢复的终端 AI 应用。
+仓库中存在一些更早阶段的设计文档和偏规划态描述。查看架构、provider 范围、命令面和恢复策略时，以当前源码为准。`CLAUDE.md` 记录的是面向 Claude Code 的工作指引，`README.md` 保持面向开发者的源码现状说明，两者应当同步。
