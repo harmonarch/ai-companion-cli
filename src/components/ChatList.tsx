@@ -10,9 +10,11 @@ import { MarkdownText } from "#src/components/MarkdownText.js";
 export function ChatList({
   messages,
   toolExecutions,
+  assistantLabel,
 }: {
   messages: ChatMessage[];
   toolExecutions: ToolExecutionRecord[];
+  assistantLabel?: string;
 }) {
   const toolExecutionsByMessage = useMemo(() => {
     const groups = new Map<string, ToolExecutionRecord[]>();
@@ -43,7 +45,7 @@ export function ChatList({
         const label = message.role === "user"
           ? "you"
           : message.role === "assistant"
-            ? "assistant"
+            ? sanitizeSingleLineText(assistantLabel?.trim() || "assistant", 40)
             : sanitizeSingleLineText(String(message.role), 20);
         const executions = toolExecutionsByMessage.get(message.id) ?? [];
         const isLastMessage = index === messages.length - 1;

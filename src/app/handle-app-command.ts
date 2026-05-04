@@ -47,6 +47,10 @@ export async function handleAppCommand({
     sessionStore,
   });
 
+  if (shouldRefreshRuntimeConfig({ command, pendingProfileClearConfirmation, pendingResetConfirmation })) {
+    runtimeConfig.refresh();
+  }
+
   applyAppCommandResult({
     dispatch,
     onExitRequested,
@@ -100,6 +104,30 @@ export function applyModelSelection({
   dispatch({ type: "overlay/close" });
   dispatch({ type: "setup/input/await-api-key", providerId: option.providerId, model: option.model });
   dispatch({ type: "status/set", value: formatAwaitingApiKeyStatus(option) });
+}
+
+function shouldRefreshRuntimeConfig({
+  command,
+  pendingProfileClearConfirmation,
+  pendingResetConfirmation,
+}: {
+  command: SlashCommand;
+  pendingProfileClearConfirmation: boolean;
+  pendingResetConfirmation: boolean;
+}) {
+  if (command.type === "profile") {
+    const parts = command.target?.trim().split(/\s+/) ?? [];
+    const action = parts[0]?.toLowerCase();
+    const subcommand = parts[1]?.toLowerCase();
+
+    return action === "set" || (action === "clear" && subcommand === "confirm" && pendingProfileClearConfirmation);
+  }
+
+  if (command.type === "reset") {
+    return command.target?.trim().toLowerCase() === "confirm" && pendingResetConfirmation;
+  }
+
+  return false;
 }
 
 export { findCurrentModelIndex };

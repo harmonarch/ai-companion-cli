@@ -189,6 +189,7 @@ export function App({
   const activeSnapshot = snapshot;
   const mode = getStatusMode(uiState);
   const inputDisabledReason = getPromptInputDisabledReason(uiState);
+  const assistantLabel = runtimeConfig.getConfig().assistantProfile?.name;
 
   return (
     <Box flexDirection="column">
@@ -242,7 +243,11 @@ export function App({
           </Box>
         ) : null}
         {isPanelVisible(uiState) ? null : (
-          <ChatList messages={activeSnapshot.messages} toolExecutions={activeSnapshot.toolExecutions} />
+          <ChatList
+            messages={activeSnapshot.messages}
+            toolExecutions={activeSnapshot.toolExecutions}
+            assistantLabel={assistantLabel}
+          />
         )}
       </Box>
       <Box marginTop={1} flexDirection="column">
