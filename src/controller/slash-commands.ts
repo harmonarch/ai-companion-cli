@@ -64,8 +64,8 @@ export const SLASH_COMMAND_SPECS = [
   },
   {
     name: "profile",
-    usage: "/profile | /profile set <name|role|selfReference> <value> | /profile clear [confirm|cancel]",
-    description: "view the assistant profile, set name/role/selfReference, or clear it",
+    usage: "/profile | /profile set <name|role|selfReference|persona> <value> | /profile clear [confirm|cancel]",
+    description: "view the assistant profile, set name/role/selfReference/persona, or clear it",
     build: (target) => ({ type: "profile", target }),
   },
   {
@@ -142,17 +142,19 @@ export function parseSlashCommand(input: string): SlashCommand | null {
     return null;
   }
 
-  const [rawName = "", ...rest] = input.trim().split(/\s+/);
-  if (!rawName) {
+  const trimmedInput = input.trim();
+  const commandMatch = /^\/(\S+)(?:\s+([\s\S]*))?$/.exec(trimmedInput);
+  if (!commandMatch) {
     return null;
   }
 
-  const name = rawName.slice(1).toLowerCase();
+  const [, rawName = "", rawTarget] = commandMatch;
+  const name = rawName.toLowerCase();
   if (!name) {
     return null;
   }
 
-  const target = rest.join(" ").trim() || undefined;
+  const target = rawTarget?.trim() || undefined;
   const spec = SLASH_COMMAND_SPEC_MAP.get(name);
   if (!spec) {
     return { type: "unknown", name };

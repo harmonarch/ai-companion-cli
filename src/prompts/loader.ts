@@ -80,10 +80,15 @@ function renderAssistantIdentityBlock(profile: AssistantProfile | undefined) {
     profile.name ? `- Name: ${profile.name}` : null,
     profile.role ? `- Role: ${profile.role}` : null,
     profile.selfReference ? `- Self-reference: ${profile.selfReference}` : null,
+    profile.persona ? `- Persona:\n${indentBlock(profile.persona)}` : null,
     "- These fields describe the assistant, not the user.",
   ].filter((line): line is string => Boolean(line));
 
   return ["Assistant identity:", ...identityLines].join("\n");
+}
+
+function indentBlock(value: string) {
+  return value.split("\n").map((line) => `  ${line}`).join("\n");
 }
 
 function readPromptFile(filePath: string): string {

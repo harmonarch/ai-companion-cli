@@ -6,6 +6,9 @@ import { listProviderCatalog } from "#src/providers/registry.js";
 import type { AssistantProfileField } from "#src/types/assistant-profile.js";
 import type { AppCommandResult } from "#src/app/app-command-result.js";
 
+const profileUsage = "/profile, /profile set <name|role|selfReference|persona> <value>, /profile clear, /profile clear confirm, /profile clear cancel";
+const profileSetUsage = "/profile set <name|role|selfReference|persona> <value>";
+
 export function executeAppCommand({
   activeSnapshot,
   assistantProfileRepository,
@@ -161,11 +164,11 @@ export function executeAppCommand({
         };
       }
 
-      const parts = command.target.trim().split(/\s+/);
-      const action = parts[0]?.toLowerCase();
+      const trimmedTarget = command.target.trim();
+      const action = /^\S+/.exec(trimmedTarget)?.[0]?.toLowerCase();
 
       if (action === "clear") {
-        const subcommand = parts[1]?.toLowerCase();
+        const subcommand = /^clear\s+(\S+)/i.exec(trimmedTarget)?.[1]?.toLowerCase();
 
         if (!subcommand) {
           return {
@@ -194,7 +197,7 @@ export function executeAppCommand({
             effects: [
               { type: "dispatch", action: { type: "reset-confirmation/set", value: false } },
               { type: "dispatch", action: { type: "overlay/close" } },
-              { type: "dispatch", action: { type: "status/set", value: "Usage: /profile, /profile set <name|role|selfReference> <value>, /profile clear, /profile clear confirm, /profile clear cancel" } },
+              { type: "dispatch", action: { type: "status/set", value: `Usage: ${profileUsage}` } },
             ],
           };
         }
@@ -226,20 +229,21 @@ export function executeAppCommand({
             { type: "dispatch", action: { type: "reset-confirmation/set", value: false } },
             { type: "dispatch", action: { type: "overlay/close" } },
             { type: "dispatch", action: { type: "profile-clear-confirmation/set", value: false } },
-            { type: "dispatch", action: { type: "status/set", value: "Usage: /profile, /profile set <name|role|selfReference> <value>, /profile clear, /profile clear confirm, /profile clear cancel" } },
+            { type: "dispatch", action: { type: "status/set", value: `Usage: ${profileUsage}` } },
           ],
         };
       }
 
-      const field = parts[1] as AssistantProfileField | undefined;
-      const value = parts.slice(2).join(" ").trim();
+      const setMatch = /^set\s+(\S+)\s+([\s\S]+)$/i.exec(trimmedTarget);
+      const field = setMatch?.[1] as AssistantProfileField | undefined;
+      const value = setMatch?.[2]?.trim();
       if (!isAssistantProfileField(field) || !value) {
         return {
           effects: [
             { type: "dispatch", action: { type: "reset-confirmation/set", value: false } },
             { type: "dispatch", action: { type: "overlay/close" } },
             { type: "dispatch", action: { type: "profile-clear-confirmation/set", value: false } },
-            { type: "dispatch", action: { type: "status/set", value: "Usage: /profile set <name|role|selfReference> <value>" } },
+            { type: "dispatch", action: { type: "status/set", value: `Usage: ${profileSetUsage}` } },
           ],
         };
       }
@@ -250,7 +254,7 @@ export function executeAppCommand({
           { type: "dispatch", action: { type: "reset-confirmation/set", value: false } },
           { type: "dispatch", action: { type: "overlay/close" } },
           { type: "dispatch", action: { type: "profile-clear-confirmation/set", value: false } },
-          { type: "dispatch", action: { type: "status/set", value: `Assistant profile updated: ${formatProfileField(field)} = ${readProfileField(nextProfile, field)}` } },
+          { type: "dispatch", action: { type: "status/set", value: `Assistant profile updated: ${formatProfileField(field)} = ${formatProfileValueForStatus(field, readProfileField(nextProfile, field))}` } },
         ],
       };
     }
@@ -379,7 +383,7 @@ function formatEmotionSummary(snapshot: SessionSnapshot, debug: boolean) {
 }
 
 function isAssistantProfileField(field: string | undefined): field is AssistantProfileField {
-  return field === "name" || field === "role" || field === "selfReference";
+  return field === "name" || field === "role" || field === "selfReference" || field === "persona";
 }
 
 function formatAssistantProfile(assistantProfileRepository: AssistantProfileRepository) {
@@ -393,6 +397,7 @@ function formatAssistantProfile(assistantProfileRepository: AssistantProfileRepo
     profile.name ? `name: ${profile.name}` : "name: —",
     profile.role ? `role: ${profile.role}` : "role: —",
     profile.selfReference ? `selfReference: ${profile.selfReference}` : "selfReference: —",
+    profile.persona ? `persona: ${summarizePersona(profile.persona)}` : "persona: —",
     `updatedAt: ${profile.meta.updatedAt}`,
     `updatedBy: ${profile.meta.updatedBy}`,
   ].join(" | ");
@@ -407,4 +412,23 @@ function readProfileField(
   field: AssistantProfileField,
 ) {
   return profile[field];
+}
+
+function formatProfileValueForStatus(field: AssistantProfileField, value: string | undefined) {
+  if (!value) {
+    return "—";
+  }
+
+  if (field !== "persona") {
+    return value;
+  }
+
+  return summarizePersona(value);
+}
+
+function summarizePersona(value: string) {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  const preview = normalized.slice(0, 80);
+  const suffix = preview.length < normalized.length ? "…" : "";
+  return `${preview}${suffix} (${value.length} chars)`;
 }

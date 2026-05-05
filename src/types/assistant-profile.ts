@@ -8,17 +8,18 @@ export const assistantProfileSchema = z.object({
   name: z.string().trim().min(1).optional(),
   role: z.string().trim().min(1).optional(),
   selfReference: z.string().trim().min(1).optional(),
+  persona: z.string().trim().min(1).optional(),
   meta: z.object({
     updatedAt: z.string().datetime({ offset: true }),
     updatedBy: z.string().trim().min(1),
   }),
 }).refine(
-  (value) => Boolean(value.name || value.role || value.selfReference),
+  (value) => Boolean(value.name || value.role || value.selfReference || value.persona),
   { message: "Assistant profile must include at least one identity field." },
 );
 
 export type AssistantProfile = z.infer<typeof assistantProfileSchema>;
 
-export const assistantProfileFields = ["name", "role", "selfReference"] as const;
+export const assistantProfileFields = ["name", "role", "selfReference", "persona"] as const;
 
 export type AssistantProfileField = typeof assistantProfileFields[number];

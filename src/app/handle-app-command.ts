@@ -124,9 +124,9 @@ function shouldRefreshRuntimeConfig({
   pendingResetConfirmation: boolean;
 }) {
   if (command.type === "profile") {
-    const parts = command.target?.trim().split(/\s+/) ?? [];
-    const action = parts[0]?.toLowerCase();
-    const subcommand = parts[1]?.toLowerCase();
+    const trimmedTarget = command.target?.trim() ?? "";
+    const action = /^\S+/.exec(trimmedTarget)?.[0]?.toLowerCase();
+    const subcommand = /^clear\s+(\S+)/i.exec(trimmedTarget)?.[1]?.toLowerCase();
 
     return action === "set" || (action === "clear" && subcommand === "confirm" && pendingProfileClearConfirmation);
   }
