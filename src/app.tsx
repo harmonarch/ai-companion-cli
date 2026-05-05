@@ -57,6 +57,10 @@ export function App({
   onExitRequested?: () => void;
 }) {
   const { exit } = useApp();
+  /**
+   * services 保存“启动后只创建一次”的运行时依赖。
+   * 它们来自 createAppServices，后续大多数 hook 和渲染逻辑都围绕这些对象展开。
+   */
   const [services, setServices] = useState<AppServices>({
     sessionStore: null,
     controller: null,
@@ -64,11 +68,18 @@ export function App({
     runtimeConfig: null,
     error: null,
   });
+  /**
+   * uiState 管理纯 UI 层状态，例如输入框内容、overlay 开关、确认弹窗和状态栏文案。
+   * 业务数据本身不放这里，而是通过 snapshot / sessions 承载。
+   */
   const [uiState, dispatch] = useReducer(uiReducer, initialUiState);
+  /** 当前会话的完整快照，聊天消息、工具执行、memory、emotion 都从这里读。 */
   const [snapshot, setSnapshot] = useState<SessionSnapshot | null>(null);
+  /** 左侧 sessions overlay 使用的会话摘要列表。 */
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const sessionStore = services.sessionStore;
   const runtimeConfig = services.runtimeConfig;
+  /** 模型列表是静态注册信息，用来渲染 model overlay 和处理模型切换。 */
   const modelCatalog = listProviderCatalog();
 
   useEffect(() => {
@@ -111,12 +122,20 @@ export function App({
     setSnapshot,
   });
 
+  /**
+   * 这些 selector 把 uiState 中和渲染相关的片段提取出来。
+   * 这样 JSX 区域读起来更像“当前该显示什么”，不用反复关心 reducer 的内部结构。
+   */
   const activeConfirmation = getActiveConfirmation(uiState);
   const memoryOverlay = getMemoryOverlay(uiState);
   const modelOverlay = getModelOverlay(uiState);
   const sessionsOverlay = getSessionsOverlay(uiState);
   const activeSessionId = snapshot?.session.id ?? null;
 
+  /**
+   * memory overlay 展示的是 snapshot 里的 memory 数据。
+   * 当会话切换或 memory 发生变化时，这个 hook 负责把 overlay 内部选中态同步回正确位置。
+   */
   useMemoryOverlaySync({
     dispatch,
     memoryOverlay,
@@ -129,6 +148,10 @@ export function App({
     }
 
     try {
+      /**
+       * 模型切换属于“改配置 + 改当前会话快照”的组合动作。
+       * applyModelSelection 会统一处理持久化、状态更新和 sessions 列表刷新。
+       */
       applyModelSelection({
         activeSnapshot: snapshot,
         dispatch,
@@ -144,6 +167,10 @@ export function App({
     }
   }, [runtimeConfig, sessionStore, snapshot]);
 
+  /**
+   * useAppInput 处理全局按键输入。
+   * 它主要负责 overlay 导航、确认弹窗快捷键、会话切换、模型选择等“非提交型输入”。
+   */
   useAppInput({
     activeConfirmation,
     activeSnapshot: snapshot,
@@ -157,6 +184,10 @@ export function App({
     uiState,
   });
 
+  /**
+   * 真正的“提交一行输入后发生什么”集中在 useSubmitHandler。
+   * 它会识别 slash command、驱动 controller 跑一轮对话，并把结果写回 snapshot / sessions。
+   */
   const handleSubmit = useSubmitHandler({
     activeSnapshot: snapshot,
     assistantProfileRepository: services.assistantProfileRepository,
@@ -171,6 +202,7 @@ export function App({
     setSnapshot,
     uiState,
   });
+
 
   /**
    * Prompt history 只负责输入框层面的历史浏览与提交触发。
@@ -191,6 +223,12 @@ export function App({
     return <Text>{sanitizeSingleLineText(services.error, 240)}</Text>;
   }
 
+  /**
+   * App 的渲染前提有两层：
+   * 1. 运行时服务创建完成；
+   * 2. bootstrap 已经拿到当前会话快照。
+   * 任一层没准备好时，都先显示状态文案或 Loading。
+   */
   if (!services.controller || !services.assistantProfileRepository || !runtimeConfig || !sessionStore) {
     return <Text>{uiState.statusMessage ? sanitizeSingleLineText(uiState.statusMessage, 240) : "Loading..."}</Text>;
   }
@@ -207,6 +245,7 @@ export function App({
   return (
     <Box flexDirection="column">
       <Box marginTop={1} flexDirection="column">
+        {/** 顶部区域按优先级显示：确认提示、各种 overlay、最后才是聊天正文。 */}
         {activeConfirmation ? (
           <Box flexDirection="column" marginBottom={1}>
             <Text>{pc.yellow("confirm")} {pc.white(sanitizeSingleLineText(activeConfirmation.request.toolName, 120))}</Text>
@@ -255,6 +294,7 @@ export function App({
             />
           </Box>
         ) : null}
+        {/** 只有没有任何面板覆盖时，聊天消息列表才会显示出来。 */}
         {isPanelVisible(uiState) ? null : (
           <ChatList
             messages={activeSnapshot.messages}
@@ -265,6 +305,7 @@ export function App({
       </Box>
       <Box marginTop={1} flexDirection="column">
         <HorizontalDivider />
+        {/** 输入框始终在底部，通过 disabled 状态配合 overlay / 运行状态控制可编辑性。 */}
         <PromptInput
           value={uiState.input}
           onChange={(value) => {
