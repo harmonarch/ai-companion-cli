@@ -1,6 +1,7 @@
 const sameDayTimeFormatter = new Intl.DateTimeFormat(undefined, {
   hour: "2-digit",
   minute: "2-digit",
+  hour12: false,
 });
 
 const olderMessageTimeFormatter = new Intl.DateTimeFormat(undefined, {
@@ -8,6 +9,7 @@ const olderMessageTimeFormatter = new Intl.DateTimeFormat(undefined, {
   day: "numeric",
   hour: "2-digit",
   minute: "2-digit",
+  hour12: false,
 });
 
 export function formatChatMessageTimestamp(value: string, now = new Date()) {

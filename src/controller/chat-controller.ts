@@ -316,6 +316,7 @@ function formatTimestamp(date: Date) {
   return new Intl.DateTimeFormat(undefined, {
     dateStyle: "full",
     timeStyle: "long",
+    hour12: false,
   }).format(date);
 }
 
