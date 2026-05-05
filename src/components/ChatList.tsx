@@ -4,6 +4,7 @@ import pc from "picocolors";
 import { messageContentToPlainText, type ChatMessage } from "#src/types/chat.js";
 import type { ToolExecutionRecord } from "#src/types/tool.js";
 import { sanitizeMultilineText, sanitizeSingleLineText } from "#src/utils/sanitize-text.js";
+import { formatChatMessageTimestamp } from "#src/utils/time.js";
 import { InlineToolState } from "#src/components/InlineToolState.js";
 import { MarkdownText } from "#src/components/MarkdownText.js";
 
@@ -50,6 +51,7 @@ export function ChatList({
         const executions = toolExecutionsByMessage.get(message.id) ?? [];
         const isLastMessage = index === messages.length - 1;
         const safeContent = sanitizeMultilineText(messageContentToPlainText(message.content), 8000);
+        const safeTimestamp = formatChatMessageTimestamp(message.createdAt);
         const isUserMessage = message.role === "user";
 
         return (
@@ -61,6 +63,7 @@ export function ChatList({
             marginBottom={isLastMessage ? 0 : 1}
           >
             <Text>{color(label)}</Text>
+            <Text>{pc.gray(safeTimestamp)}</Text>
             <Box
               flexDirection="column"
               marginLeft={isUserMessage ? 0 : 2}
