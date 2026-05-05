@@ -1,0 +1,1467 @@
+{
+  "version": "1.0.0",
+  "project": {
+    "name": "ai-companion-cli",
+    "languages": [
+      "json",
+      "markdown",
+      "typescript",
+      "unknown"
+    ],
+    "frameworks": [
+      "React",
+      "TypeScript"
+    ],
+    "description": "AI Companion CLI is a terminal-first chat application focused on multi-turn conversation, streaming output, tool-call visualization, and file-based local persistence.",
+    "analyzedAt": "2026-05-04T17:30:49.673Z",
+    "gitCommitHash": "a5e877fe3d01d2363feeac1660f0c547f48fd196"
+  },
+  "nodes": [
+    {
+      "id": "config:.gitignore",
+      "type": "config",
+      "name": ".gitignore",
+      "filePath": ".gitignore",
+      "summary": "Configuration file that affects tooling, build behavior, or local project execution.",
+      "tags": [
+        "configuration"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:.mcp.json",
+      "type": "config",
+      "name": ".mcp.json",
+      "filePath": ".mcp.json",
+      "summary": "Configuration file that affects tooling, build behavior, or local project execution.",
+      "tags": [
+        "configuration",
+        "json"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "document:CLAUDE.md",
+      "type": "document",
+      "name": "CLAUDE.md",
+      "filePath": "CLAUDE.md",
+      "summary": "Repository-specific guidance that documents the current runtime architecture, source-of-truth files, and constraints for modifying this codebase.",
+      "tags": [
+        "documentation",
+        "markdown"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:docs/project-flow.excalidraw",
+      "type": "file",
+      "name": "project-flow.excalidraw",
+      "filePath": "docs/project-flow.excalidraw",
+      "summary": "Architecture diagram source that visually maps the project flow and runtime relationships.",
+      "tags": [
+        "architecture-diagram",
+        "documentation",
+        "workflow-visualization"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "document:memory-mvp.md",
+      "type": "document",
+      "name": "memory-mvp.md",
+      "filePath": "memory-mvp.md",
+      "summary": "Design document covering the memory feature model, persistence ideas, and behavioral expectations for memory in the CLI.",
+      "tags": [
+        "documentation",
+        "markdown",
+        "memory"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "document:observability-plan.md",
+      "type": "document",
+      "name": "observability-plan.md",
+      "filePath": "observability-plan.md",
+      "summary": "Planning document outlining observability goals, telemetry surfaces, and runtime tracing ideas for the application.",
+      "tags": [
+        "documentation",
+        "markdown"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "config:package-lock.json",
+      "type": "config",
+      "name": "package-lock.json",
+      "filePath": "package-lock.json",
+      "summary": "Configuration file that affects tooling, build behavior, or local project execution.",
+      "tags": [
+        "configuration",
+        "json"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "config:package.json",
+      "type": "config",
+      "name": "package.json",
+      "filePath": "package.json",
+      "summary": "Configuration file that affects tooling, build behavior, or local project execution.",
+      "tags": [
+        "configuration",
+        "json"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "document:README.md",
+      "type": "document",
+      "name": "README.md",
+      "filePath": "README.md",
+      "summary": "Project overview and current-state documentation for the AI Companion CLI runtime, commands, architecture, and supported features.",
+      "tags": [
+        "documentation",
+        "markdown"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/app.tsx",
+      "type": "file",
+      "name": "app.tsx",
+      "filePath": "src/app.tsx",
+      "summary": "Top-level Ink application component that coordinates UI state, overlays, and chat input handling.",
+      "tags": [
+        "react"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:src/app/app-command-result.ts",
+      "type": "file",
+      "name": "app-command-result.ts",
+      "filePath": "src/app/app-command-result.ts",
+      "summary": "Application-layer module that supports runtime UI state, command handling, or input flow for the terminal client.",
+      "tags": [
+        "application",
+        "runtime-flow",
+        "typescript"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/app/create-app-services.ts",
+      "type": "file",
+      "name": "create-app-services.ts",
+      "filePath": "src/app/create-app-services.ts",
+      "summary": "Application composition root that wires configuration, storage, repositories, services, and controllers.",
+      "tags": [
+        "application",
+        "runtime-flow",
+        "typescript"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/app/execute-app-command.ts",
+      "type": "file",
+      "name": "execute-app-command.ts",
+      "filePath": "src/app/execute-app-command.ts",
+      "summary": "Application-layer module that supports runtime UI state, command handling, or input flow for the terminal client.",
+      "tags": [
+        "application",
+        "runtime-flow",
+        "typescript"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:src/app/handle-app-command.ts",
+      "type": "file",
+      "name": "handle-app-command.ts",
+      "filePath": "src/app/handle-app-command.ts",
+      "summary": "Application-layer module that supports runtime UI state, command handling, or input flow for the terminal client.",
+      "tags": [
+        "application",
+        "runtime-flow",
+        "typescript"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/app/resolve-initial-session.ts",
+      "type": "file",
+      "name": "resolve-initial-session.ts",
+      "filePath": "src/app/resolve-initial-session.ts",
+      "summary": "Application-layer module that supports runtime UI state, command handling, or input flow for the terminal client.",
+      "tags": [
+        "application",
+        "runtime-flow",
+        "typescript",
+        "sessions"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/app/setup-flow.ts",
+      "type": "file",
+      "name": "setup-flow.ts",
+      "filePath": "src/app/setup-flow.ts",
+      "summary": "Application-layer module that supports runtime UI state, command handling, or input flow for the terminal client.",
+      "tags": [
+        "application",
+        "runtime-flow",
+        "typescript"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/app/ui-state.ts",
+      "type": "file",
+      "name": "ui-state.ts",
+      "filePath": "src/app/ui-state.ts",
+      "summary": "Application-layer module that supports runtime UI state, command handling, or input flow for the terminal client.",
+      "tags": [
+        "application",
+        "runtime-flow",
+        "typescript"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:src/app/use-app-bootstrap.ts",
+      "type": "file",
+      "name": "use-app-bootstrap.ts",
+      "filePath": "src/app/use-app-bootstrap.ts",
+      "summary": "Application-layer module that supports runtime UI state, command handling, or input flow for the terminal client.",
+      "tags": [
+        "application",
+        "runtime-flow",
+        "typescript"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/app/use-app-input.ts",
+      "type": "file",
+      "name": "use-app-input.ts",
+      "filePath": "src/app/use-app-input.ts",
+      "summary": "Application-layer module that supports runtime UI state, command handling, or input flow for the terminal client.",
+      "tags": [
+        "application",
+        "runtime-flow",
+        "typescript"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:src/app/use-memory-overlay-sync.ts",
+      "type": "file",
+      "name": "use-memory-overlay-sync.ts",
+      "filePath": "src/app/use-memory-overlay-sync.ts",
+      "summary": "Application-layer module that supports runtime UI state, command handling, or input flow for the terminal client.",
+      "tags": [
+        "application",
+        "runtime-flow",
+        "typescript",
+        "memory"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/app/use-prompt-history.ts",
+      "type": "file",
+      "name": "use-prompt-history.ts",
+      "filePath": "src/app/use-prompt-history.ts",
+      "summary": "Application-layer module that supports runtime UI state, command handling, or input flow for the terminal client.",
+      "tags": [
+        "application",
+        "runtime-flow",
+        "typescript",
+        "prompting"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/app/use-submit-handler.ts",
+      "type": "file",
+      "name": "use-submit-handler.ts",
+      "filePath": "src/app/use-submit-handler.ts",
+      "summary": "Hook that routes submitted input into slash-command execution or a chat turn and streams updates back into session state.",
+      "tags": [
+        "application",
+        "runtime-flow",
+        "typescript"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:src/cli.ts",
+      "type": "file",
+      "name": "cli.ts",
+      "filePath": "src/cli.ts",
+      "summary": "CLI entry point that parses command-line arguments, detects interactive terminals, and boots the Ink application.",
+      "tags": [
+        "typescript"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/components/ChatList.tsx",
+      "type": "file",
+      "name": "ChatList.tsx",
+      "filePath": "src/components/ChatList.tsx",
+      "summary": "Ink UI component that renders ChatList inside the terminal chat interface.",
+      "tags": [
+        "ui",
+        "ink",
+        "react"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/components/HelpList.tsx",
+      "type": "file",
+      "name": "HelpList.tsx",
+      "filePath": "src/components/HelpList.tsx",
+      "summary": "Ink UI component that renders HelpList inside the terminal chat interface.",
+      "tags": [
+        "ui",
+        "ink",
+        "react"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/components/HorizontalDivider.tsx",
+      "type": "file",
+      "name": "HorizontalDivider.tsx",
+      "filePath": "src/components/HorizontalDivider.tsx",
+      "summary": "Ink UI component that renders HorizontalDivider inside the terminal chat interface.",
+      "tags": [
+        "ui",
+        "ink",
+        "react"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/components/InlineToolState.tsx",
+      "type": "file",
+      "name": "InlineToolState.tsx",
+      "filePath": "src/components/InlineToolState.tsx",
+      "summary": "Ink UI component that renders InlineToolState inside the terminal chat interface.",
+      "tags": [
+        "ui",
+        "ink",
+        "react"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/components/MarkdownText.tsx",
+      "type": "file",
+      "name": "MarkdownText.tsx",
+      "filePath": "src/components/MarkdownText.tsx",
+      "summary": "Ink UI component that renders MarkdownText inside the terminal chat interface.",
+      "tags": [
+        "ui",
+        "ink",
+        "react"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/components/MemoryList.tsx",
+      "type": "file",
+      "name": "MemoryList.tsx",
+      "filePath": "src/components/MemoryList.tsx",
+      "summary": "Ink UI component that renders MemoryList inside the terminal chat interface.",
+      "tags": [
+        "ui",
+        "ink",
+        "react"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/components/ModelList.tsx",
+      "type": "file",
+      "name": "ModelList.tsx",
+      "filePath": "src/components/ModelList.tsx",
+      "summary": "Ink UI component that renders ModelList inside the terminal chat interface.",
+      "tags": [
+        "ui",
+        "ink",
+        "react"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/components/PromptInput.tsx",
+      "type": "file",
+      "name": "PromptInput.tsx",
+      "filePath": "src/components/PromptInput.tsx",
+      "summary": "Ink UI component that renders PromptInput inside the terminal chat interface.",
+      "tags": [
+        "ui",
+        "ink",
+        "react"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:src/components/SessionList.tsx",
+      "type": "file",
+      "name": "SessionList.tsx",
+      "filePath": "src/components/SessionList.tsx",
+      "summary": "Ink UI component that renders SessionList inside the terminal chat interface.",
+      "tags": [
+        "ui",
+        "ink",
+        "react"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/components/StatusBar.tsx",
+      "type": "file",
+      "name": "StatusBar.tsx",
+      "filePath": "src/components/StatusBar.tsx",
+      "summary": "Ink UI component that renders StatusBar inside the terminal chat interface.",
+      "tags": [
+        "ui",
+        "ink",
+        "react"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/controller/chat-controller.ts",
+      "type": "file",
+      "name": "chat-controller.ts",
+      "filePath": "src/controller/chat-controller.ts",
+      "summary": "Controller that orchestrates a full chat turn, including persistence, graph execution, tool handling, memory, and emotion updates.",
+      "tags": [
+        "controller",
+        "chat-runtime",
+        "typescript"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:src/controller/emotion-service.ts",
+      "type": "file",
+      "name": "emotion-service.ts",
+      "filePath": "src/controller/emotion-service.ts",
+      "summary": "Emotion-state service that computes state transitions across user and assistant turns.",
+      "tags": [
+        "controller",
+        "chat-runtime",
+        "typescript",
+        "emotion"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:src/controller/history-selection.ts",
+      "type": "file",
+      "name": "history-selection.ts",
+      "filePath": "src/controller/history-selection.ts",
+      "summary": "Controller-layer module that manages chat flow, derived state, or user-facing runtime behavior.",
+      "tags": [
+        "controller",
+        "chat-runtime",
+        "typescript"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/controller/memory-service.ts",
+      "type": "file",
+      "name": "memory-service.ts",
+      "filePath": "src/controller/memory-service.ts",
+      "summary": "Memory extraction and persistence service that derives candidate memories and manages stored memory records.",
+      "tags": [
+        "controller",
+        "chat-runtime",
+        "typescript",
+        "memory"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:src/controller/session-store.ts",
+      "type": "file",
+      "name": "session-store.ts",
+      "filePath": "src/controller/session-store.ts",
+      "summary": "Session reconstruction layer that rebuilds UI snapshots from persisted sessions, messages, runs, tools, memory, and emotion state.",
+      "tags": [
+        "controller",
+        "chat-runtime",
+        "typescript",
+        "sessions"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:src/controller/slash-commands.ts",
+      "type": "file",
+      "name": "slash-commands.ts",
+      "filePath": "src/controller/slash-commands.ts",
+      "summary": "Controller-layer module that manages chat flow, derived state, or user-facing runtime behavior.",
+      "tags": [
+        "controller",
+        "chat-runtime",
+        "typescript"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/controller/stream-buffer.ts",
+      "type": "file",
+      "name": "stream-buffer.ts",
+      "filePath": "src/controller/stream-buffer.ts",
+      "summary": "Controller-layer module that manages chat flow, derived state, or user-facing runtime behavior.",
+      "tags": [
+        "controller",
+        "chat-runtime",
+        "typescript"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/graph/chat-graph.ts",
+      "type": "file",
+      "name": "chat-graph.ts",
+      "filePath": "src/graph/chat-graph.ts",
+      "summary": "LangGraph-based conversation loop that alternates between the agent and tools and emits normalized runtime events.",
+      "tags": [
+        "langgraph",
+        "orchestration",
+        "typescript"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:src/infra/config/config-repository.ts",
+      "type": "file",
+      "name": "config-repository.ts",
+      "filePath": "src/infra/config/config-repository.ts",
+      "summary": "Infrastructure configuration module that loads, stores, or synchronizes runtime settings.",
+      "tags": [
+        "infrastructure",
+        "config-loading",
+        "typescript"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/infra/config/load-config.ts",
+      "type": "file",
+      "name": "load-config.ts",
+      "filePath": "src/infra/config/load-config.ts",
+      "summary": "Configuration loader that resolves environment variables, config files, defaults, and workspace-specific assistant profile state.",
+      "tags": [
+        "infrastructure",
+        "config-loading",
+        "typescript"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:src/infra/config/runtime-config-service.ts",
+      "type": "file",
+      "name": "runtime-config-service.ts",
+      "filePath": "src/infra/config/runtime-config-service.ts",
+      "summary": "Infrastructure configuration module that loads, stores, or synchronizes runtime settings.",
+      "tags": [
+        "infrastructure",
+        "config-loading",
+        "typescript"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/infra/repositories/assistant-profile-repository.ts",
+      "type": "file",
+      "name": "assistant-profile-repository.ts",
+      "filePath": "src/infra/repositories/assistant-profile-repository.ts",
+      "summary": "Repository module that persists and reads domain records from the file-backed storage layer.",
+      "tags": [
+        "repository",
+        "persistence",
+        "typescript"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/infra/repositories/emotion-state-repository.ts",
+      "type": "file",
+      "name": "emotion-state-repository.ts",
+      "filePath": "src/infra/repositories/emotion-state-repository.ts",
+      "summary": "Repository module that persists and reads domain records from the file-backed storage layer.",
+      "tags": [
+        "repository",
+        "persistence",
+        "typescript",
+        "emotion"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/infra/repositories/memory-audit-repository.ts",
+      "type": "file",
+      "name": "memory-audit-repository.ts",
+      "filePath": "src/infra/repositories/memory-audit-repository.ts",
+      "summary": "Repository module that persists and reads domain records from the file-backed storage layer.",
+      "tags": [
+        "repository",
+        "persistence",
+        "typescript",
+        "memory"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/infra/repositories/memory-candidate-repository.ts",
+      "type": "file",
+      "name": "memory-candidate-repository.ts",
+      "filePath": "src/infra/repositories/memory-candidate-repository.ts",
+      "summary": "Repository module that persists and reads domain records from the file-backed storage layer.",
+      "tags": [
+        "repository",
+        "persistence",
+        "typescript",
+        "memory"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/infra/repositories/memory-record-repository.ts",
+      "type": "file",
+      "name": "memory-record-repository.ts",
+      "filePath": "src/infra/repositories/memory-record-repository.ts",
+      "summary": "Repository module that persists and reads domain records from the file-backed storage layer.",
+      "tags": [
+        "repository",
+        "persistence",
+        "typescript",
+        "memory"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/infra/repositories/message-repository.ts",
+      "type": "file",
+      "name": "message-repository.ts",
+      "filePath": "src/infra/repositories/message-repository.ts",
+      "summary": "Repository module that persists and reads domain records from the file-backed storage layer.",
+      "tags": [
+        "repository",
+        "persistence",
+        "typescript"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/infra/repositories/run-repository.ts",
+      "type": "file",
+      "name": "run-repository.ts",
+      "filePath": "src/infra/repositories/run-repository.ts",
+      "summary": "Repository module that persists and reads domain records from the file-backed storage layer.",
+      "tags": [
+        "repository",
+        "persistence",
+        "typescript"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/infra/repositories/session-repository.ts",
+      "type": "file",
+      "name": "session-repository.ts",
+      "filePath": "src/infra/repositories/session-repository.ts",
+      "summary": "Repository module that persists and reads domain records from the file-backed storage layer.",
+      "tags": [
+        "repository",
+        "persistence",
+        "typescript",
+        "sessions"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/infra/repositories/session-scratchpad-repository.ts",
+      "type": "file",
+      "name": "session-scratchpad-repository.ts",
+      "filePath": "src/infra/repositories/session-scratchpad-repository.ts",
+      "summary": "Repository module that persists and reads domain records from the file-backed storage layer.",
+      "tags": [
+        "repository",
+        "persistence",
+        "typescript",
+        "sessions"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/infra/repositories/tool-execution-repository.ts",
+      "type": "file",
+      "name": "tool-execution-repository.ts",
+      "filePath": "src/infra/repositories/tool-execution-repository.ts",
+      "summary": "Repository module that persists and reads domain records from the file-backed storage layer.",
+      "tags": [
+        "repository",
+        "persistence",
+        "typescript",
+        "tools"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/infra/storage/file-store.ts",
+      "type": "file",
+      "name": "file-store.ts",
+      "filePath": "src/infra/storage/file-store.ts",
+      "summary": "File-based storage primitive that provides bounded path resolution and atomic JSON writes for persisted application data.",
+      "tags": [
+        "storage",
+        "persistence",
+        "typescript"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/prompts/loader.ts",
+      "type": "file",
+      "name": "loader.ts",
+      "filePath": "src/prompts/loader.ts",
+      "summary": "Prompt-loading service that reads built-in templates and assembles provider-specific or auxiliary prompt content.",
+      "tags": [
+        "prompts",
+        "templates",
+        "typescript",
+        "prompting"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "document:src/prompts/templates/deepseek.system.md",
+      "type": "document",
+      "name": "deepseek.system.md",
+      "filePath": "src/prompts/templates/deepseek.system.md",
+      "summary": "Prompt template used by the runtime to construct built-in assistant or memory prompt content.",
+      "tags": [
+        "documentation",
+        "prompts",
+        "templates",
+        "markdown",
+        "prompting"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "document:src/prompts/templates/default.system.md",
+      "type": "document",
+      "name": "default.system.md",
+      "filePath": "src/prompts/templates/default.system.md",
+      "summary": "Prompt template used by the runtime to construct built-in assistant or memory prompt content.",
+      "tags": [
+        "documentation",
+        "prompts",
+        "templates",
+        "markdown",
+        "prompting"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "document:src/prompts/templates/memory.context.md",
+      "type": "document",
+      "name": "memory.context.md",
+      "filePath": "src/prompts/templates/memory.context.md",
+      "summary": "Prompt template used by the runtime to construct built-in assistant or memory prompt content.",
+      "tags": [
+        "documentation",
+        "prompts",
+        "templates",
+        "markdown",
+        "memory"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "document:src/prompts/templates/memory.extract.md",
+      "type": "document",
+      "name": "memory.extract.md",
+      "filePath": "src/prompts/templates/memory.extract.md",
+      "summary": "Prompt template used by the runtime to construct built-in assistant or memory prompt content.",
+      "tags": [
+        "documentation",
+        "prompts",
+        "templates",
+        "markdown",
+        "memory"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/providers/capability-matrix.ts",
+      "type": "file",
+      "name": "capability-matrix.ts",
+      "filePath": "src/providers/capability-matrix.ts",
+      "summary": "Provider-layer module that defines interfaces, adapters, or capability metadata for model runtimes.",
+      "tags": [
+        "providers",
+        "llm-runtime",
+        "typescript"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/providers/deepseek-provider.ts",
+      "type": "file",
+      "name": "deepseek-provider.ts",
+      "filePath": "src/providers/deepseek-provider.ts",
+      "summary": "Provider adapter that configures the DeepSeek runtime and maps project prompt loading into provider execution settings.",
+      "tags": [
+        "providers",
+        "llm-runtime",
+        "typescript"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/providers/langchain-runtime.ts",
+      "type": "file",
+      "name": "langchain-runtime.ts",
+      "filePath": "src/providers/langchain-runtime.ts",
+      "summary": "Runtime adapter that wraps LangChain model behavior behind the project provider interface.",
+      "tags": [
+        "providers",
+        "llm-runtime",
+        "typescript"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/providers/registry.ts",
+      "type": "file",
+      "name": "registry.ts",
+      "filePath": "src/providers/registry.ts",
+      "summary": "Provider registry that exposes the currently supported provider implementations to the runtime.",
+      "tags": [
+        "providers",
+        "llm-runtime",
+        "typescript"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/providers/types.ts",
+      "type": "file",
+      "name": "types.ts",
+      "filePath": "src/providers/types.ts",
+      "summary": "Shared provider contracts and type definitions used by provider runtimes and configuration code.",
+      "tags": [
+        "providers",
+        "llm-runtime",
+        "typescript"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/tools/http-fetch.ts",
+      "type": "file",
+      "name": "http-fetch.ts",
+      "filePath": "src/tools/http-fetch.ts",
+      "summary": "Built-in tool module used by the chat runtime to perform local read, search, fetch, or utility operations.",
+      "tags": [
+        "tools",
+        "tooling",
+        "typescript"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/tools/index.ts",
+      "type": "file",
+      "name": "index.ts",
+      "filePath": "src/tools/index.ts",
+      "summary": "Runtime tool registry that handles tool definitions, persistence, confirmations, and inline tool-result rendering.",
+      "tags": [
+        "tools",
+        "tooling",
+        "typescript"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/tools/list-dir.ts",
+      "type": "file",
+      "name": "list-dir.ts",
+      "filePath": "src/tools/list-dir.ts",
+      "summary": "Built-in tool module used by the chat runtime to perform local read, search, fetch, or utility operations.",
+      "tags": [
+        "tools",
+        "tooling",
+        "typescript"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/tools/local-time.ts",
+      "type": "file",
+      "name": "local-time.ts",
+      "filePath": "src/tools/local-time.ts",
+      "summary": "Built-in tool module used by the chat runtime to perform local read, search, fetch, or utility operations.",
+      "tags": [
+        "tools",
+        "tooling",
+        "typescript"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/tools/read-file.ts",
+      "type": "file",
+      "name": "read-file.ts",
+      "filePath": "src/tools/read-file.ts",
+      "summary": "Built-in tool module used by the chat runtime to perform local read, search, fetch, or utility operations.",
+      "tags": [
+        "tools",
+        "tooling",
+        "typescript"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/tools/search-text.ts",
+      "type": "file",
+      "name": "search-text.ts",
+      "filePath": "src/tools/search-text.ts",
+      "summary": "Built-in tool module used by the chat runtime to perform local read, search, fetch, or utility operations.",
+      "tags": [
+        "tools",
+        "tooling",
+        "typescript"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/types/assistant-profile.ts",
+      "type": "file",
+      "name": "assistant-profile.ts",
+      "filePath": "src/types/assistant-profile.ts",
+      "summary": "Shared type definition module that describes persisted records or runtime data structures.",
+      "tags": [
+        "types",
+        "shared-contracts",
+        "typescript"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/types/chat.ts",
+      "type": "file",
+      "name": "chat.ts",
+      "filePath": "src/types/chat.ts",
+      "summary": "Shared type definition module that describes persisted records or runtime data structures.",
+      "tags": [
+        "types",
+        "shared-contracts",
+        "typescript"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/types/emotion.ts",
+      "type": "file",
+      "name": "emotion.ts",
+      "filePath": "src/types/emotion.ts",
+      "summary": "Shared type definition module that describes persisted records or runtime data structures.",
+      "tags": [
+        "types",
+        "shared-contracts",
+        "typescript",
+        "emotion"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/types/events.ts",
+      "type": "file",
+      "name": "events.ts",
+      "filePath": "src/types/events.ts",
+      "summary": "Shared type definition module that describes persisted records or runtime data structures.",
+      "tags": [
+        "types",
+        "shared-contracts",
+        "typescript"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/types/memory.ts",
+      "type": "file",
+      "name": "memory.ts",
+      "filePath": "src/types/memory.ts",
+      "summary": "Shared type definition module that describes persisted records or runtime data structures.",
+      "tags": [
+        "types",
+        "shared-contracts",
+        "typescript",
+        "memory"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/types/run.ts",
+      "type": "file",
+      "name": "run.ts",
+      "filePath": "src/types/run.ts",
+      "summary": "Shared type definition module that describes persisted records or runtime data structures.",
+      "tags": [
+        "types",
+        "shared-contracts",
+        "typescript"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/types/session.ts",
+      "type": "file",
+      "name": "session.ts",
+      "filePath": "src/types/session.ts",
+      "summary": "Shared type definition module that describes persisted records or runtime data structures.",
+      "tags": [
+        "types",
+        "shared-contracts",
+        "typescript",
+        "sessions"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/types/tool.ts",
+      "type": "file",
+      "name": "tool.ts",
+      "filePath": "src/types/tool.ts",
+      "summary": "Shared type definition module that describes persisted records or runtime data structures.",
+      "tags": [
+        "types",
+        "shared-contracts",
+        "typescript",
+        "tools"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/utils/sanitize-text.ts",
+      "type": "file",
+      "name": "sanitize-text.ts",
+      "filePath": "src/utils/sanitize-text.ts",
+      "summary": "Utility module that provides small shared helpers used across the runtime.",
+      "tags": [
+        "utilities",
+        "typescript"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "config:tsconfig.json",
+      "type": "config",
+      "name": "tsconfig.json",
+      "filePath": "tsconfig.json",
+      "summary": "Configuration file that affects tooling, build behavior, or local project execution.",
+      "tags": [
+        "configuration",
+        "json"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:tsup.config.ts",
+      "type": "file",
+      "name": "tsup.config.ts",
+      "filePath": "tsup.config.ts",
+      "summary": "Project file used by the AI Companion CLI codebase.",
+      "tags": [
+        "typescript"
+      ],
+      "complexity": "simple"
+    }
+  ],
+  "edges": [
+    {
+      "source": "document:README.md",
+      "target": "file:src/cli.ts",
+      "type": "documents",
+      "weight": 0.5
+    },
+    {
+      "source": "document:README.md",
+      "target": "file:src/app.tsx",
+      "type": "documents",
+      "weight": 0.5
+    },
+    {
+      "source": "document:README.md",
+      "target": "file:src/controller/chat-controller.ts",
+      "type": "documents",
+      "weight": 0.5
+    },
+    {
+      "source": "document:CLAUDE.md",
+      "target": "file:src/cli.ts",
+      "type": "documents",
+      "weight": 0.5
+    },
+    {
+      "source": "document:CLAUDE.md",
+      "target": "file:src/app.tsx",
+      "type": "documents",
+      "weight": 0.5
+    },
+    {
+      "source": "document:CLAUDE.md",
+      "target": "file:src/app/create-app-services.ts",
+      "type": "documents",
+      "weight": 0.5
+    },
+    {
+      "source": "document:CLAUDE.md",
+      "target": "file:src/controller/chat-controller.ts",
+      "type": "documents",
+      "weight": 0.5
+    },
+    {
+      "source": "document:CLAUDE.md",
+      "target": "file:src/graph/chat-graph.ts",
+      "type": "documents",
+      "weight": 0.5
+    },
+    {
+      "source": "document:CLAUDE.md",
+      "target": "file:src/tools/index.ts",
+      "type": "documents",
+      "weight": 0.5
+    },
+    {
+      "source": "document:CLAUDE.md",
+      "target": "file:src/controller/session-store.ts",
+      "type": "documents",
+      "weight": 0.5
+    },
+    {
+      "source": "document:CLAUDE.md",
+      "target": "file:src/infra/config/load-config.ts",
+      "type": "documents",
+      "weight": 0.5
+    },
+    {
+      "source": "document:CLAUDE.md",
+      "target": "file:src/infra/storage/file-store.ts",
+      "type": "documents",
+      "weight": 0.5
+    },
+    {
+      "source": "document:memory-mvp.md",
+      "target": "file:src/controller/memory-service.ts",
+      "type": "documents",
+      "weight": 0.5
+    },
+    {
+      "source": "document:memory-mvp.md",
+      "target": "file:src/app/use-memory-overlay-sync.ts",
+      "type": "documents",
+      "weight": 0.5
+    },
+    {
+      "source": "document:observability-plan.md",
+      "target": "file:src/controller/chat-controller.ts",
+      "type": "documents",
+      "weight": 0.5
+    },
+    {
+      "source": "document:observability-plan.md",
+      "target": "file:src/tools/index.ts",
+      "type": "documents",
+      "weight": 0.5
+    },
+    {
+      "source": "document:src/prompts/templates/deepseek.system.md",
+      "target": "file:src/prompts/loader.ts",
+      "type": "documents",
+      "weight": 0.5
+    },
+    {
+      "source": "document:src/prompts/templates/memory.context.md",
+      "target": "file:src/prompts/loader.ts",
+      "type": "documents",
+      "weight": 0.5
+    },
+    {
+      "source": "document:src/prompts/templates/memory.extract.md",
+      "target": "file:src/prompts/loader.ts",
+      "type": "documents",
+      "weight": 0.5
+    },
+    {
+      "source": "document:src/prompts/templates/default.system.md",
+      "target": "file:src/prompts/loader.ts",
+      "type": "documents",
+      "weight": 0.5
+    },
+    {
+      "source": "config:package.json",
+      "target": "file:src/cli.ts",
+      "type": "configures",
+      "weight": 0.6
+    },
+    {
+      "source": "config:package.json",
+      "target": "file:tsup.config.ts",
+      "type": "configures",
+      "weight": 0.6
+    },
+    {
+      "source": "config:tsconfig.json",
+      "target": "file:src/app.tsx",
+      "type": "configures",
+      "weight": 0.6
+    },
+    {
+      "source": "config:tsconfig.json",
+      "target": "file:src/cli.ts",
+      "type": "configures",
+      "weight": 0.6
+    },
+    {
+      "source": "config:tsconfig.json",
+      "target": "file:tsup.config.ts",
+      "type": "configures",
+      "weight": 0.6
+    },
+    {
+      "source": "config:package-lock.json",
+      "target": "config:package.json",
+      "type": "depends_on",
+      "weight": 0.6
+    },
+    {
+      "source": "config:.mcp.json",
+      "target": "document:README.md",
+      "type": "related",
+      "weight": 0.5
+    },
+    {
+      "source": "file:docs/project-flow.excalidraw",
+      "target": "document:CLAUDE.md",
+      "type": "related",
+      "weight": 0.5
+    }
+  ],
+  "layers": [
+    {
+      "id": "layer:project-artifacts",
+      "name": "Project Artifacts",
+      "description": "Repository-level documentation, diagrams, and build or tooling configuration that describe or shape the project as a whole.",
+      "nodeIds": [
+        "config:.gitignore",
+        "config:.mcp.json",
+        "document:CLAUDE.md",
+        "file:docs/project-flow.excalidraw",
+        "document:memory-mvp.md",
+        "document:observability-plan.md",
+        "config:package-lock.json",
+        "config:package.json",
+        "document:README.md",
+        "config:tsconfig.json",
+        "file:tsup.config.ts"
+      ]
+    },
+    {
+      "id": "layer:cli-and-ui",
+      "name": "CLI and UI",
+      "description": "The terminal entry point, top-level app flow, input handling, and Ink-rendered interface components.",
+      "nodeIds": [
+        "file:src/app.tsx",
+        "file:src/app/app-command-result.ts",
+        "file:src/app/create-app-services.ts",
+        "file:src/app/execute-app-command.ts",
+        "file:src/app/handle-app-command.ts",
+        "file:src/app/resolve-initial-session.ts",
+        "file:src/app/setup-flow.ts",
+        "file:src/app/ui-state.ts",
+        "file:src/app/use-app-bootstrap.ts",
+        "file:src/app/use-app-input.ts",
+        "file:src/app/use-memory-overlay-sync.ts",
+        "file:src/app/use-prompt-history.ts",
+        "file:src/app/use-submit-handler.ts",
+        "file:src/cli.ts",
+        "file:src/components/ChatList.tsx",
+        "file:src/components/HelpList.tsx",
+        "file:src/components/HorizontalDivider.tsx",
+        "file:src/components/InlineToolState.tsx",
+        "file:src/components/MarkdownText.tsx",
+        "file:src/components/MemoryList.tsx",
+        "file:src/components/ModelList.tsx",
+        "file:src/components/PromptInput.tsx",
+        "file:src/components/SessionList.tsx",
+        "file:src/components/StatusBar.tsx"
+      ]
+    },
+    {
+      "id": "layer:conversation-engine",
+      "name": "Conversation Engine",
+      "description": "Runtime orchestration for chat turns, graph execution, session reconstruction, and high-level controller behavior.",
+      "nodeIds": [
+        "file:src/controller/chat-controller.ts",
+        "file:src/controller/emotion-service.ts",
+        "file:src/controller/history-selection.ts",
+        "file:src/controller/memory-service.ts",
+        "file:src/controller/session-store.ts",
+        "file:src/controller/slash-commands.ts",
+        "file:src/controller/stream-buffer.ts",
+        "file:src/graph/chat-graph.ts"
+      ]
+    },
+    {
+      "id": "layer:infrastructure-and-persistence",
+      "name": "Infrastructure and Persistence",
+      "description": "Configuration loading, repositories, and file-backed storage primitives that persist runtime state.",
+      "nodeIds": [
+        "file:src/infra/config/config-repository.ts",
+        "file:src/infra/config/load-config.ts",
+        "file:src/infra/config/runtime-config-service.ts",
+        "file:src/infra/repositories/assistant-profile-repository.ts",
+        "file:src/infra/repositories/emotion-state-repository.ts",
+        "file:src/infra/repositories/memory-audit-repository.ts",
+        "file:src/infra/repositories/memory-candidate-repository.ts",
+        "file:src/infra/repositories/memory-record-repository.ts",
+        "file:src/infra/repositories/message-repository.ts",
+        "file:src/infra/repositories/run-repository.ts",
+        "file:src/infra/repositories/session-repository.ts",
+        "file:src/infra/repositories/session-scratchpad-repository.ts",
+        "file:src/infra/repositories/tool-execution-repository.ts",
+        "file:src/infra/storage/file-store.ts"
+      ]
+    },
+    {
+      "id": "layer:prompts-and-providers",
+      "name": "Prompts and Providers",
+      "description": "Prompt loading, built-in templates, provider adapters, and capability metadata for model execution.",
+      "nodeIds": [
+        "file:src/prompts/loader.ts",
+        "document:src/prompts/templates/deepseek.system.md",
+        "document:src/prompts/templates/default.system.md",
+        "document:src/prompts/templates/memory.context.md",
+        "document:src/prompts/templates/memory.extract.md",
+        "file:src/providers/capability-matrix.ts",
+        "file:src/providers/deepseek-provider.ts",
+        "file:src/providers/langchain-runtime.ts",
+        "file:src/providers/registry.ts",
+        "file:src/providers/types.ts"
+      ]
+    },
+    {
+      "id": "layer:tools-and-shared-types",
+      "name": "Tools and Shared Types",
+      "description": "Built-in runtime tools, shared type contracts, and small utility helpers used across the application.",
+      "nodeIds": [
+        "file:src/tools/http-fetch.ts",
+        "file:src/tools/index.ts",
+        "file:src/tools/list-dir.ts",
+        "file:src/tools/local-time.ts",
+        "file:src/tools/read-file.ts",
+        "file:src/tools/search-text.ts",
+        "file:src/types/assistant-profile.ts",
+        "file:src/types/chat.ts",
+        "file:src/types/emotion.ts",
+        "file:src/types/events.ts",
+        "file:src/types/memory.ts",
+        "file:src/types/run.ts",
+        "file:src/types/session.ts",
+        "file:src/types/tool.ts",
+        "file:src/utils/sanitize-text.ts"
+      ]
+    }
+  ],
+  "tour": [
+    {
+      "order": 1,
+      "title": "Start with the project story",
+      "description": "Read the repository-facing docs first to understand the current scope, supported commands, and which architecture notes are authoritative.",
+      "nodeIds": [
+        "document:README.md",
+        "document:CLAUDE.md",
+        "config:package.json"
+      ]
+    },
+    {
+      "order": 2,
+      "title": "Follow the terminal bootstrap path",
+      "description": "Move from the CLI entry point into the top-level Ink app to see how the terminal session boots and hands off into runtime state.",
+      "nodeIds": [
+        "file:src/cli.ts",
+        "file:src/app.tsx"
+      ]
+    },
+    {
+      "order": 3,
+      "title": "Trace input and command routing",
+      "description": "These app-layer modules split slash commands from normal chat turns and keep the UI snapshot synchronized with streaming work.",
+      "nodeIds": [
+        "file:src/app/use-submit-handler.ts",
+        "file:src/app/handle-app-command.ts",
+        "file:src/app/use-app-input.ts"
+      ]
+    },
+    {
+      "order": 4,
+      "title": "Inspect the conversation engine",
+      "description": "The controller, graph loop, and tool registry form the runtime core that persists messages, runs tools, and consumes model events.",
+      "nodeIds": [
+        "file:src/controller/chat-controller.ts",
+        "file:src/graph/chat-graph.ts",
+        "file:src/tools/index.ts"
+      ]
+    },
+    {
+      "order": 5,
+      "title": "Understand persistence and reconstruction",
+      "description": "These files show how sessions, messages, runs, and tool executions are written to disk and rebuilt into UI-ready snapshots.",
+      "nodeIds": [
+        "file:src/infra/storage/file-store.ts",
+        "file:src/controller/session-store.ts",
+        "file:src/infra/repositories/message-repository.ts",
+        "file:src/infra/repositories/session-repository.ts"
+      ]
+    },
+    {
+      "order": 6,
+      "title": "Review memory and emotion behavior",
+      "description": "Memory extraction, emotion state transitions, and overlay synchronization live here and shape the assistant state carried across turns.",
+      "nodeIds": [
+        "file:src/controller/memory-service.ts",
+        "file:src/controller/emotion-service.ts",
+        "file:src/app/use-memory-overlay-sync.ts",
+        "document:memory-mvp.md"
+      ]
+    },
+    {
+      "order": 7,
+      "title": "Finish with providers and prompts",
+      "description": "The current runtime is wired around DeepSeek, with prompt loading and provider adapters defining how model calls are configured.",
+      "nodeIds": [
+        "file:src/providers/registry.ts",
+        "file:src/providers/deepseek-provider.ts",
+        "file:src/prompts/loader.ts",
+        "document:src/prompts/templates/deepseek.system.md"
+      ]
+    }
+  ]
+}

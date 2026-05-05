@@ -1,0 +1,252 @@
+{
+  "generatedAt": "2026-05-04T17:31:49.992Z",
+  "method": "fallback-file-list",
+  "files": [
+    {
+      "filePath": ".gitignore"
+    },
+    {
+      "filePath": ".mcp.json"
+    },
+    {
+      "filePath": "CLAUDE.md"
+    },
+    {
+      "filePath": "docs/project-flow.excalidraw"
+    },
+    {
+      "filePath": "memory-mvp.md"
+    },
+    {
+      "filePath": "observability-plan.md"
+    },
+    {
+      "filePath": "package-lock.json"
+    },
+    {
+      "filePath": "package.json"
+    },
+    {
+      "filePath": "README.md"
+    },
+    {
+      "filePath": "src/app.tsx"
+    },
+    {
+      "filePath": "src/app/app-command-result.ts"
+    },
+    {
+      "filePath": "src/app/create-app-services.ts"
+    },
+    {
+      "filePath": "src/app/execute-app-command.ts"
+    },
+    {
+      "filePath": "src/app/handle-app-command.ts"
+    },
+    {
+      "filePath": "src/app/resolve-initial-session.ts"
+    },
+    {
+      "filePath": "src/app/setup-flow.ts"
+    },
+    {
+      "filePath": "src/app/ui-state.ts"
+    },
+    {
+      "filePath": "src/app/use-app-bootstrap.ts"
+    },
+    {
+      "filePath": "src/app/use-app-input.ts"
+    },
+    {
+      "filePath": "src/app/use-memory-overlay-sync.ts"
+    },
+    {
+      "filePath": "src/app/use-prompt-history.ts"
+    },
+    {
+      "filePath": "src/app/use-submit-handler.ts"
+    },
+    {
+      "filePath": "src/cli.ts"
+    },
+    {
+      "filePath": "src/components/ChatList.tsx"
+    },
+    {
+      "filePath": "src/components/HelpList.tsx"
+    },
+    {
+      "filePath": "src/components/HorizontalDivider.tsx"
+    },
+    {
+      "filePath": "src/components/InlineToolState.tsx"
+    },
+    {
+      "filePath": "src/components/MarkdownText.tsx"
+    },
+    {
+      "filePath": "src/components/MemoryList.tsx"
+    },
+    {
+      "filePath": "src/components/ModelList.tsx"
+    },
+    {
+      "filePath": "src/components/PromptInput.tsx"
+    },
+    {
+      "filePath": "src/components/SessionList.tsx"
+    },
+    {
+      "filePath": "src/components/StatusBar.tsx"
+    },
+    {
+      "filePath": "src/controller/chat-controller.ts"
+    },
+    {
+      "filePath": "src/controller/emotion-service.ts"
+    },
+    {
+      "filePath": "src/controller/history-selection.ts"
+    },
+    {
+      "filePath": "src/controller/memory-service.ts"
+    },
+    {
+      "filePath": "src/controller/session-store.ts"
+    },
+    {
+      "filePath": "src/controller/slash-commands.ts"
+    },
+    {
+      "filePath": "src/controller/stream-buffer.ts"
+    },
+    {
+      "filePath": "src/graph/chat-graph.ts"
+    },
+    {
+      "filePath": "src/infra/config/config-repository.ts"
+    },
+    {
+      "filePath": "src/infra/config/load-config.ts"
+    },
+    {
+      "filePath": "src/infra/config/runtime-config-service.ts"
+    },
+    {
+      "filePath": "src/infra/repositories/assistant-profile-repository.ts"
+    },
+    {
+      "filePath": "src/infra/repositories/emotion-state-repository.ts"
+    },
+    {
+      "filePath": "src/infra/repositories/memory-audit-repository.ts"
+    },
+    {
+      "filePath": "src/infra/repositories/memory-candidate-repository.ts"
+    },
+    {
+      "filePath": "src/infra/repositories/memory-record-repository.ts"
+    },
+    {
+      "filePath": "src/infra/repositories/message-repository.ts"
+    },
+    {
+      "filePath": "src/infra/repositories/run-repository.ts"
+    },
+    {
+      "filePath": "src/infra/repositories/session-repository.ts"
+    },
+    {
+      "filePath": "src/infra/repositories/session-scratchpad-repository.ts"
+    },
+    {
+      "filePath": "src/infra/repositories/tool-execution-repository.ts"
+    },
+    {
+      "filePath": "src/infra/storage/file-store.ts"
+    },
+    {
+      "filePath": "src/prompts/loader.ts"
+    },
+    {
+      "filePath": "src/prompts/templates/deepseek.system.md"
+    },
+    {
+      "filePath": "src/prompts/templates/default.system.md"
+    },
+    {
+      "filePath": "src/prompts/templates/memory.context.md"
+    },
+    {
+      "filePath": "src/prompts/templates/memory.extract.md"
+    },
+    {
+      "filePath": "src/providers/capability-matrix.ts"
+    },
+    {
+      "filePath": "src/providers/deepseek-provider.ts"
+    },
+    {
+      "filePath": "src/providers/langchain-runtime.ts"
+    },
+    {
+      "filePath": "src/providers/registry.ts"
+    },
+    {
+      "filePath": "src/providers/types.ts"
+    },
+    {
+      "filePath": "src/tools/http-fetch.ts"
+    },
+    {
+      "filePath": "src/tools/index.ts"
+    },
+    {
+      "filePath": "src/tools/list-dir.ts"
+    },
+    {
+      "filePath": "src/tools/local-time.ts"
+    },
+    {
+      "filePath": "src/tools/read-file.ts"
+    },
+    {
+      "filePath": "src/tools/search-text.ts"
+    },
+    {
+      "filePath": "src/types/assistant-profile.ts"
+    },
+    {
+      "filePath": "src/types/chat.ts"
+    },
+    {
+      "filePath": "src/types/emotion.ts"
+    },
+    {
+      "filePath": "src/types/events.ts"
+    },
+    {
+      "filePath": "src/types/memory.ts"
+    },
+    {
+      "filePath": "src/types/run.ts"
+    },
+    {
+      "filePath": "src/types/session.ts"
+    },
+    {
+      "filePath": "src/types/tool.ts"
+    },
+    {
+      "filePath": "src/utils/sanitize-text.ts"
+    },
+    {
+      "filePath": "tsconfig.json"
+    },
+    {
+      "filePath": "tsup.config.ts"
+    }
+  ]
+}
