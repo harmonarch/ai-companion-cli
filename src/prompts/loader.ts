@@ -1,3 +1,7 @@
+/**
+ * Prompt 加载与渲染层。
+ * 负责在“用户配置文件 -> 默认配置文件 -> 内置模板”之间选择 prompt，并补上 assistant identity 与 memory context。
+ */
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -21,6 +25,10 @@ export class PromptLoader {
   ) {}
 
   load(providerId: ProviderId, variables: PromptVariables): string {
+    /**
+     * system prompt 的主体和 assistant identity 在这里拼接。
+     * 这样 provider 只关心“要哪份 prompt”，不用重复处理 profile 注入逻辑。
+     */
     const promptBody = this.loadPromptBody(providerId, variables);
     const assistantIdentity = renderAssistantIdentityBlock(this.assistantProfileRepository.get() ?? this.config.assistantProfile);
     return assistantIdentity ? `${assistantIdentity}\n\n${promptBody}` : promptBody;

@@ -1,3 +1,7 @@
+/**
+ * 运行时配置加载入口。
+ * 负责按环境变量 -> TOML 配置 -> 默认值的优先级合并配置，并推导 setup 状态。
+ */
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
@@ -111,6 +115,10 @@ function readTomlConfig(): ParsedTomlConfig {
 }
 
 export function loadConfig(): AppConfig {
+  /**
+   * 这里产出的 AppConfig 会被整个应用复用。
+   * 除了读取原始配置，还会补上 workspace root、assistant profile 和 setup 状态这些运行时推导结果。
+   */
   const {
     config: fileConfig,
     configDir,
@@ -175,6 +183,10 @@ function resolveSetupState({
   defaultModelConfigured: boolean;
   providerSettings: Record<string, ProviderSettings>;
 }): AppConfigSetup {
+  /**
+   * setupRequired 不是简单看配置文件是否存在。
+   * 这里会进一步确认默认 provider、默认 model 和所选 provider 的 API key 是否齐备。
+   */
   const providerApiKeysConfigured = Object.fromEntries(
     Object.entries(providerSettings).map(([providerId, settings]) => [providerId, hasApiKeySetting(providerId, settings)]),
   );

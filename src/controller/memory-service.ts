@@ -1,3 +1,7 @@
+/**
+ * Memory 服务。
+ * 负责维护 scratchpad、抽取候选记忆、合并长期记忆，以及记录每次记忆写入/拒绝/更新的审计轨迹。
+ */
 import type { PromptLoader } from "#src/prompts/loader.js";
 import type { SessionRecord } from "#src/types/session.js";
 import { messageContentToPlainText, type ChatMessage } from "#src/types/chat.js";
@@ -70,6 +74,10 @@ export class MemoryService {
   }
 
   updateScratchpad(sessionId: string, input: string, toolExecutions: ToolExecutionRecord[]) {
+    /**
+     * scratchpad 只保存最近几轮对当前任务仍有帮助的短期上下文。
+     * 它面向“本次会话还在继续”，长期记忆是否写入要等回合结束后的候选提取与合并。
+     */
     if (!this.isEnabled()) {
       return null;
     }
@@ -92,6 +100,10 @@ export class MemoryService {
   }
 
   retrieveForPrompt() {
+    /**
+     * 进入 prompt 的 memory 会先经过状态、过期时间和敏感度过滤。
+     * 这里返回的不只是 records，还带有已经渲染好的 prompt context。
+     */
     if (!this.isEnabled()) {
       return { records: [], context: "" };
     }
@@ -209,6 +221,10 @@ export class MemoryService {
   }
 
   async processCompletedTurn(input: ProcessTurnInput) {
+    /**
+     * 一轮对话结束后，memory 流程才真正开始。
+     * 顺序是：读取 scratchpad -> 让模型抽候选 -> 候选去重/判定 -> 写入或驳回长期记忆 -> 记录 audit。
+     */
     if (!this.isEnabled()) {
       return;
     }
@@ -334,6 +350,10 @@ export class MemoryService {
   }
 
   private async extractCandidates(input: ProcessTurnInput & { scratchpad: SessionScratchpad | null }) {
+    /**
+     * 候选提取拿到的是模型输出，不直接落长期记忆。
+     * 后面还要经过显式性、敏感度、重复度和 tombstone 等规则筛选。
+     */
     const normalized = normalizeText(messageContentToPlainText(input.userMessage.content));
     if (!normalized) {
       return [];
@@ -384,6 +404,10 @@ export class MemoryService {
   }
 
   private consolidateCandidate(candidate: MemoryCandidate): ConsolidationOutcome {
+    /**
+     * consolidateCandidate 决定候选记忆的命运：reject / duplicate / update / create。
+     * 这里集中承载自动写入策略，便于后续调整规则而不改动上游抽取流程。
+     */
     if (!this.config.autoWriteLowRisk) {
       return reject("automatic memory writes are disabled", "needs_confirmation");
     }

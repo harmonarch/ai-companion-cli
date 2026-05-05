@@ -1,3 +1,7 @@
+/**
+ * 会话快照组装层。
+ * 持久化数据分散在 sessions/messages/runs/tool-executions/memory/emotion 多处，UI 读取时通过这里合成一个可直接渲染的 snapshot。
+ */
 import type { MessageRepository } from "#src/infra/repositories/message-repository.js";
 import type { RunRepository } from "#src/infra/repositories/run-repository.js";
 import type { SessionRepository } from "#src/infra/repositories/session-repository.js";
@@ -87,6 +91,10 @@ export class SessionStore {
   }
 
   loadSession(sessionId: string): SessionSnapshot {
+    /**
+     * loadSession 是 UI 最常依赖的读取入口。
+     * 它把消息、工具执行、memory 详情和 emotion 状态一起补齐，避免界面层自己跨 repository 拼装。
+     */
     const session = this.sessionRepository.getById(sessionId);
     if (!session) {
       throw new Error(`Session not found: ${sessionId}`);
@@ -163,6 +171,10 @@ export class SessionStore {
   }
 
   private resolveMemoryDetail(memory: MemoryRecord, context: ResolutionContext): MemoryDetailRecord {
+    /**
+     * memory record 里只保存 source refs。
+     * 这里把 message/run/tool 这些引用解析成 UI 可展示的 evidence，方便用户回看这条记忆来自哪一轮对话。
+     */
     const parsedRefs = memory.sourceRefs.map((ref) => this.parseSourceRef(ref)).filter((ref): ref is ParsedSourceRef => Boolean(ref));
     const inferredSessionId = this.findSessionIdFromRefs(parsedRefs, context);
 

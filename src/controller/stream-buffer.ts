@@ -1,3 +1,7 @@
+/**
+ * 流式文本缓冲器。
+ * 模型 token 到达可能非常频繁，直接逐 token 刷 UI 会导致终端闪烁和状态更新过密，因此先在这里做短时间聚合。
+ */
 import type { ChatRuntimeEvent } from "#src/types/events.js";
 
 type TextDeltaEvent = Extract<ChatRuntimeEvent, { type: "text_delta" }>;
@@ -16,6 +20,10 @@ export class StreamBuffer {
   }
 
   push(event: TextDeltaEvent) {
+    /**
+     * 只保留最新事件元数据，把文本累加到 buffer。
+     * 到达 flush 时再以一条合并后的 text_delta 交给 UI。
+     */
     this.buffer += event.text;
     this.latestEvent = event;
     if (this.timer) {

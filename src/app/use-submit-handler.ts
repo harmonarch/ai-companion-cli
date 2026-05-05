@@ -1,3 +1,7 @@
+/**
+ * 输入提交流量的总分发点。
+ * 顺序是：slash command -> setup API key -> setup 阻断 -> 正常聊天消息。
+ */
 import { useCallback, useRef, type Dispatch, type SetStateAction } from "react";
 import { handleAppCommand } from "#src/app/handle-app-command.js";
 import { formatSetupStatus, isSetupCommandAllowed } from "#src/app/setup-flow.js";
@@ -46,6 +50,10 @@ export function useSubmitHandler({
 }: UseSubmitHandlerOptions) {
   const submitInFlightRef = useRef(false);
 
+  /**
+   * 这里集中处理所有提交入口，并用 submitInFlightRef 保证同一时刻只跑一条提交流程。
+   * 对 UI 来说，输入框只关心“提交”，具体是命令、配置还是聊天，都在这里分流。
+   */
   return useCallback(async (value: string) => {
     if (!activeSnapshot || !controller || !sessionStore || !assistantProfileRepository || !runtimeConfig) {
       return;
@@ -228,6 +236,10 @@ async function submitMessage({
   setSnapshot: Dispatch<SetStateAction<SessionSnapshot | null>>;
   value: string;
 }) {
+  /**
+   * 这一层负责把 controller 的持久化/流式事件翻译成 UI snapshot 更新。
+   * controller 管真实业务状态，hook 只维护当前界面的即时反馈。
+   */
   dispatch({ type: "input/set", value: "" });
   dispatch({ type: "status/set", value: undefined });
   dispatch({ type: "reset-confirmation/set", value: false });

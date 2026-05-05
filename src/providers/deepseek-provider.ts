@@ -1,3 +1,7 @@
+/**
+ * DeepSeek provider 定义。
+ * 负责声明模型列表、API key 校验、runtime 创建，以及当前 provider 使用哪份 system prompt。
+ */
 import { ChatOpenAI } from "@langchain/openai";
 import type { AppConfig } from "#src/infra/config/load-config.js";
 import type { SessionRecord } from "#src/types/session.js";
@@ -9,6 +13,10 @@ import type { ProviderDefinition, ValidateApiKeyInput } from "#src/providers/typ
 const defaultBaseUrl = "https://api.deepseek.com/v1";
 
 export const deepseekProvider: ProviderDefinition = {
+  /**
+   * provider definition 只描述 DeepSeek 这一接入点本身的行为边界。
+   * 真正统一的消息抽取、工具调用和事件转换逻辑仍然下沉在 langchain runtime 适配层。
+   */
   id: "deepseek",
   defaultModel: "deepseek-chat",
   listModels() {

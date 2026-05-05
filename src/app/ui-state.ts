@@ -1,3 +1,7 @@
+/**
+ * App 级 UI 状态模型。
+ * 这里集中管理输入框、流式状态、确认队列、overlay 和 setup 输入模式，避免这些交互状态散落在组件树里。
+ */
 import type { SetStateAction } from "react";
 import type { ToolConfirmationRequest } from "#src/types/tool.js";
 
@@ -93,6 +97,10 @@ export const initialUiState: UiState = {
 };
 
 export function uiReducer(state: UiState, action: UiAction): UiState {
+  /**
+   * reducer 只维护当前界面状态，不直接读写持久化。
+   * 聊天业务状态来自 session snapshot，这里更像是界面模式切换和交互阻断层。
+   */
   switch (action.type) {
     case "input/set":
       return {

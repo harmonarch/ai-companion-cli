@@ -1,3 +1,7 @@
+/**
+ * slash command 与模型切换相关的应用层处理入口。
+ * 这里承接解析后的命令对象，执行命令结果，并在必要时刷新 runtime config 或切换当前 session 的 provider/model。
+ */
 import type { Dispatch, SetStateAction } from "react";
 import { formatAwaitingApiKeyStatus } from "#src/app/setup-flow.js";
 import { applyAppCommandResult } from "#src/app/app-command-result.js";
@@ -38,6 +42,10 @@ export async function handleAppCommand({
   setSnapshot,
   setSessions,
 }: HandleAppCommandOptions) {
+  /**
+   * 这里不直接解释 slash command 文本，而是消费已经解析好的命令对象。
+   * 它的职责更像应用层编排：执行命令、决定是否刷新配置、把结果分发回 UI。
+   */
   const result = executeAppCommand({
     activeSnapshot,
     assistantProfileRepository,

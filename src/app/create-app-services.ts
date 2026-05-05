@@ -1,3 +1,7 @@
+/**
+ * 运行时装配入口。
+ * 这里把配置、文件存储、各类 repository、memory/emotion service、session store 和 chat controller 串成一套可运行服务。
+ */
 import { ChatController } from "#src/controller/chat-controller.js";
 import { EmotionService } from "#src/controller/emotion-service.js";
 import { MemoryService } from "#src/controller/memory-service.js";
@@ -26,6 +30,10 @@ export interface AppServiceBundle {
 }
 
 export function createAppServices(): AppServiceBundle {
+  /**
+   * 装配顺序基本遵循：配置 -> 存储原语 -> repository -> domain service -> store/controller。
+   * 这样新人沿着依赖方向往下读，就能看到一轮对话需要哪些基础能力。
+   */
   const runtimeConfig = createRuntimeConfigService();
   const config = runtimeConfig.getConfig();
   const fileStore = new FileStore(config.storagePath);

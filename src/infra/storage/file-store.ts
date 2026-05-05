@@ -1,3 +1,7 @@
+/**
+ * 文件存储原语。
+ * 这里统一处理存储根目录边界、JSON/JSONL 读写和原子替换，repository 层在它之上实现具体数据模型。
+ */
 import { appendFileSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
@@ -9,6 +13,10 @@ export class FileStore {
   }
 
   resolve(...segments: string[]) {
+    /**
+     * 所有路径都必须落在 storage root 内。
+     * repository 不需要自己防目录逃逸，统一在这一层收口检查。
+     */
     const resolvedPath = path.resolve(this.absoluteRootPath, ...segments);
     const relativePath = path.relative(this.absoluteRootPath, resolvedPath);
     if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
@@ -24,6 +32,9 @@ export class FileStore {
   writeJson(relativePath: string, value: unknown) {
     const filePath = this.resolve(relativePath);
     mkdirSync(path.dirname(filePath), { recursive: true });
+    /**
+     * 先写临时文件再 rename，避免中途写坏留下半截 JSON。
+     */
     const tempPath = createTempPath(filePath);
     writeFileSync(tempPath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
     renameSync(tempPath, filePath);

@@ -1,3 +1,7 @@
+/**
+ * LangGraph 对话图适配层。
+ * 这里定义 agent -> tools -> agent 的循环，并把图运行时事件规整成 controller 可消费的统一事件流。
+ */
 import { HumanMessage, AIMessage, SystemMessage, ToolMessage, type BaseMessage } from "@langchain/core/messages";
 import { END, MessagesAnnotation, START, StateGraph } from "@langchain/langgraph";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
@@ -6,6 +10,9 @@ import type { ChatRuntimeEvent } from "#src/types/events.js";
 import { messageContentToPlainText, type ChatMessage, type MessageContent, type ToolCallMessageContentPart } from "#src/types/chat.js";
 
 export function buildGraph(runtime: ProviderRuntime, tools: unknown[]) {
+  /**
+   * 图结构保持极简：先让 agent 回答；若最后一条消息声明了 tool call，就进入 tools 节点，再回到 agent。
+   */
   const toolNode = new ToolNode(tools as never[]);
   const runtimeWithTools = runtime.bindTools(tools);
 
@@ -39,6 +46,10 @@ export async function* streamCanonicalEvents(
     model: string;
   },
 ): AsyncGenerator<ChatRuntimeEvent> {
+  /**
+   * 这个生成器把 LangGraph / LangChain 的底层事件转换成仓库内部的规范事件。
+   * controller 不需要了解具体 provider 或 LangChain chunk 结构，只消费这里产出的事件类型。
+   */
   yield {
     type: "response_started",
     sessionId: context.sessionId,
@@ -158,6 +169,10 @@ export function buildGraphInput(
   emotionContext?: string,
   temporalContext?: string,
 ) {
+  /**
+   * 持久化层里的 ChatMessage 结构和 LangChain 的 BaseMessage 结构不同。
+   * 这里负责把 system/memory/emotion/temporal context 与历史消息一起转换成模型输入。
+   */
   const history: BaseMessage[] = [new SystemMessage(systemPrompt)];
 
   if (memoryContext) {

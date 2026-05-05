@@ -1,3 +1,8 @@
+/**
+ * 顶层 Ink 应用组件。
+ * 这里负责把服务初始化、UI reducer、overlay、聊天列表和输入框拼成一个完整终端界面。
+ * 新人读这个文件时，重点看服务创建、bootstrap、输入提交和各个 overlay hook 的协作关系。
+ */
 import React, { useCallback, useEffect, useReducer, useState } from "react";
 import { Box, Text, useApp } from "ink";
 import pc from "picocolors";
@@ -67,6 +72,10 @@ export function App({
   const modelCatalog = listProviderCatalog();
 
   useEffect(() => {
+    /**
+     * 服务实例只在应用启动时创建一次。
+     * 这里把启动失败也转成 UI 可展示状态，避免在 Ink 渲染阶段直接抛出。
+     */
     try {
       const nextServices = createAppServices();
       setServices({
@@ -163,6 +172,10 @@ export function App({
     uiState,
   });
 
+  /**
+   * Prompt history 只负责输入框层面的历史浏览与提交触发。
+   * 真正的命令分流、流式更新和持久化仍然在 useSubmitHandler / controller 里完成。
+   */
   const { handleHistoryDown, handleHistoryUp, handlePromptSubmit } = usePromptHistory({
     activeSessionId,
     dispatch,

@@ -1,3 +1,7 @@
+/**
+ * 单轮对话编排器。
+ * 它把“用户输入”推进成一整轮完整流程：持久化消息、创建 run、组装工具和 prompt、消费图事件、落盘 assistant 结果，并在回合结束后更新 memory / emotion。
+ */
 import type { AppConfig } from "#src/infra/config/load-config.js";
 import { MessageRepository } from "#src/infra/repositories/message-repository.js";
 import { RunRepository } from "#src/infra/repositories/run-repository.js";
@@ -48,6 +52,10 @@ export class ChatController {
   ) {}
 
   async sendMessage(session: SessionRecord, input: string, handlers: SendMessageHandlers) {
+    /**
+     * sendMessage 是整轮对话的主链路。
+     * 大致阶段：写入用户消息 -> 初始化 assistant/run -> 组装 runtime/tools/history/prompt -> 消费 graph 事件 -> 收尾持久化。
+     */
     const trimmed = input.trim();
     if (!trimmed) {
       return;
@@ -61,6 +69,10 @@ export class ChatController {
     });
     handlers.onUserMessage(userMessage);
 
+    /**
+     * scratchpad 和 emotion 都以当前用户输入为起点先更新一轮。
+     * 它们随后会被拼进 prompt 或 session snapshot，影响本轮生成和界面展示。
+     */
     const sessionSnapshot = this.sessionStore.loadSession(session.id);
     this.memoryService.updateScratchpad(session.id, trimmed, sessionSnapshot.toolExecutions);
     const emotionState = this.emotionService.transitionOnUserTurn(session.id, trimmed);
@@ -198,6 +210,10 @@ export class ChatController {
         },
       });
 
+      /**
+       * graphInput 会把持久化历史、system prompt、memory、emotion 和时间上下文折叠成模型可消费的消息序列。
+       * 这里决定了模型在本轮真正能看到哪些信息。
+       */
       const graph = buildGraph(runtime, runtimeTools);
       const history = this.messageRepository.listBySession(session.id).filter((message) => message.id !== assistantMessage.id);
       const selectedHistory = selectHistory(history, this.config.historyMaxMessages);
@@ -264,6 +280,10 @@ export class ChatController {
 }
 
 function buildTemporalContext(messages: ChatMessage[]) {
+  /**
+   * 恢复旧会话时，把本地时间和距上一条消息的间隔显式告诉模型。
+   * 这样模型更容易区分“连续追问”和“隔了很久后的恢复会话”。
+   */
   const latestMessage = messages.at(-1);
   if (!latestMessage) {
     return undefined;

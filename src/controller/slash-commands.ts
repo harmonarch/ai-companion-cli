@@ -1,3 +1,7 @@
+/**
+ * slash command 协议定义与解析工具。
+ * 这里维护支持的命令集合、自动补全所需信息，以及从用户输入到命令对象的转换。
+ */
 export type SlashCommand =
   | { type: "new" }
   | { type: "sessions" }
@@ -130,6 +134,10 @@ export function completeSlashCommand(input: string, cursorIndex: number) {
 }
 
 export function parseSlashCommand(input: string): SlashCommand | null {
+  /**
+   * 解析阶段只负责识别命令名和原始 target，不在这里做业务校验。
+   * 具体命令怎么执行，交给后面的应用层和命令执行层处理。
+   */
   if (!input.startsWith("/")) {
     return null;
   }

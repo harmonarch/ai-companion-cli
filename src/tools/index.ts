@@ -1,3 +1,7 @@
+/**
+ * 运行时工具注册层。
+ * 它把每个工具定义包装成 LangChain tool，并统一负责执行记录持久化、风险确认和 tool result 回灌消息流。
+ */
 import { tool } from "@langchain/core/tools";
 import type { ZodTypeAny, infer as Infer } from "zod";
 import type { ToolExecutionRepository } from "#src/infra/repositories/tool-execution-repository.js";
@@ -36,6 +40,10 @@ const toolDefinitions: readonly ToolDefinition[] = [
 ];
 
 export function createRuntimeTools(context: ToolRuntimeContext) {
+  /**
+   * 每个工具定义在这里被适配成模型可调用的 runtime tool。
+   * 具体工具逻辑分散在各文件里，但执行生命周期统一走 runTool。
+   */
   return toolDefinitions.map((definition) =>
     tool(
       async (input) => runTool(definition, input as Record<string, unknown>, context),
@@ -53,6 +61,10 @@ async function runTool(
   input: Record<string, unknown>,
   context: ToolRuntimeContext,
 ) {
+  /**
+   * runTool 统一处理一次工具调用的完整生命周期：分配 callId、创建执行记录、可选确认、执行、回写结果。
+   * controller 只需要消费执行更新和 tool result，不必关心每个工具自己的细节。
+   */
   const toolCall = context.resolveCall(definition.name, input);
   const initialStatus = definition.riskLevel === "medium" ? "pending" : "running";
   let execution = context.toolExecutionRepository.create({

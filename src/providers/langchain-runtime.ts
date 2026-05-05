@@ -1,3 +1,7 @@
+/**
+ * LangChain 模型适配层。
+ * 这里把 LangChain 的调用接口和消息结构规整成仓库内部统一的 ProviderRuntime，减少上层对具体 SDK 细节的感知。
+ */
 import { AIMessageChunk } from "@langchain/core/messages";
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import type { Runnable } from "@langchain/core/runnables";
@@ -10,6 +14,10 @@ type ToolBindableModel = InvokableModel & {
 };
 
 export function createLangChainRuntime(model: ToolBindableModel): ProviderRuntime {
+  /**
+   * 运行时对外暴露的接口很小：调用、绑定工具、提取文本、提取工具调用、提取 usage、提取 finish reason。
+   * 具体 provider 只要能接入这套接口，就能被 graph 和 controller 复用。
+   */
   return {
     invoke(input) {
       return model.invoke(input as never);
