@@ -16,7 +16,7 @@ AI Companion CLI 是一个以终端为主的聊天应用。当前实现聚焦在
 
 当前源码里的边界也需要明确：
 
-- 运行时 provider 当前只接入了 `deepseek`
+- 运行时 provider 当前接入了 `deepseek` 和 `glm`
 - 没有 `test` 脚本，也没有测试运行器配置
 - 没有 `lint` 脚本
 - `npm run typecheck` 是目前唯一内置的校验命令
@@ -91,6 +91,7 @@ AI Companion CLI 是一个以终端为主的聊天应用。当前实现聚焦在
 - `/memory`
 - `/emotion`
 - `/profile`
+- `/model`
 - `/reset`
 - `/help`
 - `/exit`
@@ -116,10 +117,20 @@ AI Companion CLI 是一个以终端为主的聊天应用。当前实现聚焦在
 
 - Provider 抽象定义在 `src/providers/types.ts`
 - provider 注册表在 `src/providers/registry.ts`
-- 当前仅注册 `deepseek`
-- `src/providers/deepseek-provider.ts` 负责具体 provider runtime
+- 当前注册了 `deepseek` 和 `glm`
+- `src/providers/deepseek-provider.ts` 与 `src/providers/glm-provider.ts` 负责具体 provider runtime
 - `src/providers/langchain-runtime.ts` 负责把 LangChain 模型行为适配到仓库内部 runtime 接口
 - `src/providers/capability-matrix.ts` 保存静态能力矩阵
+
+当前内置模型：
+
+- `deepseek / deepseek-chat`
+- `glm / glm-5.1`
+
+默认 API key 环境变量按 provider id 推导：
+
+- `DEEPSEEK_API_KEY`
+- `GLM_API_KEY`
 
 ## 配置
 
@@ -140,6 +151,8 @@ AI Companion CLI 是一个以终端为主的聊天应用。当前实现聚焦在
 - `AI_COMPANION_MEMORY_ENABLED`
 - `AI_COMPANION_MEMORY_USER_ID`
 - `AI_COMPANION_MEMORY_AUTO_WRITE_LOW_RISK`
+- `DEEPSEEK_API_KEY`
+- `GLM_API_KEY`
 
 ## 持久化模型
 

@@ -1,8 +1,10 @@
 import { deepseekProvider } from "#src/providers/deepseek-provider.js";
+import { glmProvider } from "#src/providers/glm-provider.js";
 import type { ProviderDefinition, ProviderId } from "#src/providers/types.js";
 
 export const providerRegistry: Record<ProviderId, ProviderDefinition> = {
   [deepseekProvider.id]: deepseekProvider,
+  [glmProvider.id]: glmProvider,
 };
 
 export interface ProviderCatalogEntry {

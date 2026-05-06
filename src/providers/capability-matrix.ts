@@ -10,10 +10,22 @@ const deepseekCapabilities: Record<string, ModelCapabilities> = {
   "deepseek-chat": defaultCapabilities,
 };
 
+const glmCapabilities: Record<string, ModelCapabilities> = {
+  "glm-5.1": defaultCapabilities,
+};
+
 export function getDeepseekModelCapabilities(model: string): ModelCapabilities {
   return deepseekCapabilities[model] ?? defaultCapabilities;
 }
 
 export function listDeepseekModels() {
   return Object.keys(deepseekCapabilities);
+}
+
+export function getGlmModelCapabilities(model: string): ModelCapabilities {
+  return glmCapabilities[model] ?? defaultCapabilities;
+}
+
+export function listGlmModels() {
+  return Object.keys(glmCapabilities);
 }

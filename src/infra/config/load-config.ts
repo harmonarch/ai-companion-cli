@@ -11,6 +11,10 @@ import type { ProviderId } from "#src/providers/types.js";
 import { assistantProfileRelativePath, assistantProfileSchema, type AssistantProfile } from "#src/types/assistant-profile.js";
 
 const defaultHistoryMaxMessages = 24;
+const providerDefaultModels: Record<string, string> = {
+  deepseek: "deepseek-chat",
+  glm: "glm-5.1",
+};
 
 const providerPromptSchema = z.record(z.string(), z.string().min(1));
 const providerSettingsSchema = z.record(z.string(), z.record(z.string(), z.unknown()));
@@ -130,7 +134,9 @@ export function loadConfig(): AppConfig {
     ?? fileConfig.history?.maxMessages
     ?? defaultHistoryMaxMessages;
   const defaultProvider = process.env.AI_COMPANION_PROVIDER ?? fileConfig.defaultProvider ?? "deepseek";
-  const defaultModel = process.env.AI_COMPANION_MODEL ?? fileConfig.defaultModel ?? "deepseek-chat";
+  const defaultModel = process.env.AI_COMPANION_MODEL
+    ?? fileConfig.defaultModel
+    ?? getDefaultModelForProvider(defaultProvider);
   const providerSettings = resolveProviderSettings(fileConfig);
   const setup = resolveSetupState({
     configFileExists,
@@ -227,6 +233,10 @@ export function getProviderApiKeyEnvName(providerId: string) {
   return `${providerId.replace(/[^a-zA-Z0-9]+/g, "_").toUpperCase()}_API_KEY`;
 }
 
+function getDefaultModelForProvider(providerId: string) {
+  return providerDefaultModels[providerId] ?? "deepseek-chat";
+}
+
 function readAssistantProfile(workspaceRoot: string) {
   const filePath = path.join(workspaceRoot, assistantProfileRelativePath);
   if (!existsSync(filePath)) {
@@ -298,9 +308,15 @@ function resolveProviderSettings(fileConfig: RawConfig): Record<string, Provider
     apiKey: configuredProviders.deepseek?.apiKey,
     baseUrl: configuredProviders.deepseek?.baseUrl,
   };
+  const glmSettings = {
+    ...(configuredProviders.glm ?? {}),
+    apiKey: configuredProviders.glm?.apiKey,
+    baseUrl: configuredProviders.glm?.baseUrl,
+  };
 
   return {
     ...configuredProviders,
     deepseek: deepseekSettings,
+    glm: glmSettings,
   };
 }

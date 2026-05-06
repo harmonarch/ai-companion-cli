@@ -22,7 +22,7 @@
 
 当前已经确认的 README 漂移点：
 
-- `README.md` 提到了多个规划中的 provider，但运行时注册表当前只接入了 `deepseek`。
+- `README.md` 提到了多个规划中的 provider，但运行时注册表当前接入的是 `deepseek` 和 `glm`。
 - `README.md` 提到了更宽的命令面，实际支持的 slash commands 以 `src/controller/slash-commands.ts` 和 `src/app/handle-app-command.ts` 为准。
 
 ## 运行时架构
@@ -58,10 +58,12 @@
 ### Providers
 
 - Provider 抽象定义位于 `src/providers/types.ts`。
-- 运行时注册表 `src/providers/registry.ts` 当前只注册了 `deepseek`。
-- `src/providers/deepseek-provider.ts` 负责创建 provider runtime。
+- 运行时注册表 `src/providers/registry.ts` 当前注册了 `deepseek` 和 `glm`。
+- `src/providers/deepseek-provider.ts` 与 `src/providers/glm-provider.ts` 负责创建 provider runtime。
 - `src/providers/langchain-runtime.ts` 把 LangChain 模型行为适配到仓库内部的 runtime 接口。
 - `src/providers/capability-matrix.ts` 保存运行时使用的静态能力数据。
+- 当前内置模型包括 `deepseek-chat` 和 `glm-5.1`。
+- 默认 API key 环境变量会按 provider id 推导，例如 `DEEPSEEK_API_KEY` 和 `GLM_API_KEY`。
 
 ### Slash commands
 
@@ -75,6 +77,7 @@
 - `/memory`
 - `/emotion`
 - `/profile`
+- `/model`
 - `/reset`
 - `/help`
 - `/exit`
@@ -134,6 +137,8 @@ UI 中展示的 session snapshot 依赖这些仓储的协同读取，以及 `src
 - `AI_COMPANION_MEMORY_ENABLED`
 - `AI_COMPANION_MEMORY_USER_ID`
 - `AI_COMPANION_MEMORY_AUTO_WRITE_LOW_RISK`
+- `DEEPSEEK_API_KEY`
+- `GLM_API_KEY`
 
 ### Prompt 加载与构建产物
 
