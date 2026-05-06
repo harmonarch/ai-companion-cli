@@ -6,6 +6,7 @@ import type { AppConfig } from "#src/infra/config/load-config.js";
 import { MessageRepository } from "#src/infra/repositories/message-repository.js";
 import { RunRepository } from "#src/infra/repositories/run-repository.js";
 import type { ToolExecutionRepository } from "#src/infra/repositories/tool-execution-repository.js";
+import type { SystemPromptRepository } from "#src/infra/repositories/system-prompt-repository.js";
 import { buildGraph, buildGraphInput, streamCanonicalEvents } from "#src/graph/chat-graph.js";
 import type { PromptLoader } from "#src/prompts/loader.js";
 import type { ProviderDefinition, ProviderId, RuntimeToolCall } from "#src/providers/types.js";
@@ -47,6 +48,7 @@ export class ChatController {
     private readonly messageRepository: MessageRepository,
     private readonly runRepository: RunRepository,
     private readonly toolExecutionRepository: ToolExecutionRepository,
+    private readonly systemPromptRepository: SystemPromptRepository,
     private readonly memoryService: MemoryService,
     private readonly emotionService: EmotionService,
   ) {}
@@ -224,6 +226,18 @@ export class ChatController {
       });
       const memoryContext = this.memoryService.retrieveForPrompt().context;
       const temporalContext = buildTemporalContext(selectedHistory);
+      this.systemPromptRepository.create({
+        assistantMessageId: assistantMessage.id,
+        sessionId: session.id,
+        runId: run.id,
+        provider: session.provider,
+        model: session.model,
+        systemPrompt,
+        memoryContext: memoryContext || undefined,
+        emotionContext: emotionContext || undefined,
+        temporalContext,
+        messages: [systemPrompt, memoryContext, emotionContext, temporalContext].filter((value): value is string => Boolean(value)),
+      });
       const graphInput = buildGraphInput(selectedHistory, systemPrompt, memoryContext, emotionContext, temporalContext);
 
       for await (const event of streamCanonicalEvents(graph, graphInput, runtime, {

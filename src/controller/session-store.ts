@@ -6,6 +6,7 @@ import type { MessageRepository } from "#src/infra/repositories/message-reposito
 import type { RunRepository } from "#src/infra/repositories/run-repository.js";
 import type { SessionRepository } from "#src/infra/repositories/session-repository.js";
 import type { ToolExecutionRepository } from "#src/infra/repositories/tool-execution-repository.js";
+import type { SystemPromptRepository } from "#src/infra/repositories/system-prompt-repository.js";
 import type { AssistantProfileRepository } from "#src/infra/repositories/assistant-profile-repository.js";
 import {
   messageContentToPlainText,
@@ -51,6 +52,7 @@ export class SessionStore {
     private readonly messageRepository: MessageRepository,
     private readonly runRepository: RunRepository,
     private readonly toolExecutionRepository: ToolExecutionRepository,
+    private readonly systemPromptRepository: SystemPromptRepository,
     private readonly memoryService: MemoryService,
     private readonly emotionService: EmotionService,
     private readonly assistantProfileRepository: AssistantProfileRepository,
@@ -118,6 +120,7 @@ export class SessionStore {
     this.memoryService.deleteSessionState(sessionId);
     this.runRepository.deleteBySession(sessionId);
     this.toolExecutionRepository.deleteBySession(sessionId);
+    this.systemPromptRepository.deleteBySession(sessionId);
     this.messageRepository.deleteBySession(sessionId);
     this.sessionRepository.delete(sessionId);
   }
@@ -128,6 +131,7 @@ export class SessionStore {
     this.assistantProfileRepository.clear();
     this.toolExecutionRepository.deleteAll();
     this.runRepository.deleteAll();
+    this.systemPromptRepository.deleteAll();
     this.messageRepository.deleteAll();
     this.sessionRepository.deleteAll();
     return this.createSession();
