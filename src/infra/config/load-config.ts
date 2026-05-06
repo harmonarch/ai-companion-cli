@@ -2,13 +2,19 @@
  * 运行时配置加载入口。
  * 负责按环境变量 -> TOML 配置 -> 默认值的优先级合并配置，并推导 setup 状态。
  */
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import TOML from "toml";
 import { z } from "zod";
+import { FileStore } from "#src/infra/storage/file-store.js";
 import type { ProviderId } from "#src/providers/types.js";
-import { assistantProfileRelativePath, assistantProfileSchema, type AssistantProfile } from "#src/types/assistant-profile.js";
+import {
+  assistantProfileRelativePath,
+  assistantProfileSchema,
+  legacyAssistantProfileRelativePath,
+  type AssistantProfile,
+} from "#src/types/assistant-profile.js";
 
 const defaultHistoryMaxMessages = 24;
 const providerDefaultModels: Record<string, string> = {
@@ -130,6 +136,7 @@ export function loadConfig(): AppConfig {
     configPath,
   } = readTomlConfig();
   const workspaceRoot = process.cwd();
+  const storagePath = process.env.AI_COMPANION_STORAGE_PATH ?? fileConfig.storagePath ?? path.join(homedir(), ".ai-companion");
   const historyMaxMessages = readPositiveInt(process.env.AI_COMPANION_HISTORY_MAX_MESSAGES)
     ?? fileConfig.history?.maxMessages
     ?? defaultHistoryMaxMessages;
@@ -150,7 +157,7 @@ export function loadConfig(): AppConfig {
   return {
     defaultProvider,
     defaultModel,
-    storagePath: process.env.AI_COMPANION_STORAGE_PATH ?? fileConfig.storagePath ?? path.join(homedir(), ".ai-companion"),
+    storagePath,
     historyMaxMessages,
     workspaceRoot,
     prompts: {
@@ -169,7 +176,7 @@ export function loadConfig(): AppConfig {
         ?? fileConfig.memory?.autoWriteLowRisk
         ?? true,
     },
-    assistantProfile: readAssistantProfile(workspaceRoot),
+    assistantProfile: readAssistantProfile(storagePath, workspaceRoot),
     setup,
   };
 }
@@ -237,18 +244,45 @@ function getDefaultModelForProvider(providerId: string) {
   return providerDefaultModels[providerId] ?? "deepseek-chat";
 }
 
-function readAssistantProfile(workspaceRoot: string) {
-  const filePath = path.join(workspaceRoot, assistantProfileRelativePath);
-  if (!existsSync(filePath)) {
+function readAssistantProfile(storagePath: string, workspaceRoot: string) {
+  const fileStore = new FileStore(storagePath);
+  const currentProfile = readCurrentAssistantProfile(fileStore);
+  if (currentProfile) {
+    return currentProfile;
+  }
+
+  return migrateLegacyAssistantProfile(fileStore, workspaceRoot);
+}
+
+function readCurrentAssistantProfile(fileStore: FileStore) {
+  const parsed = fileStore.readJson(assistantProfileRelativePath);
+  if (parsed === null) {
     return undefined;
   }
 
   try {
-    const parsed = JSON.parse(readFileSync(filePath, "utf8"));
     return assistantProfileSchema.parse(parsed);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Failed to parse assistant profile ${filePath}: ${message}`);
+    throw new Error(`Failed to parse assistant profile ${fileStore.resolve(assistantProfileRelativePath)}: ${message}`);
+  }
+}
+
+function migrateLegacyAssistantProfile(fileStore: FileStore, workspaceRoot: string) {
+  const legacyFilePath = path.join(workspaceRoot, legacyAssistantProfileRelativePath);
+  if (!existsSync(legacyFilePath)) {
+    return undefined;
+  }
+
+  try {
+    const parsed = JSON.parse(readFileSync(legacyFilePath, "utf8"));
+    const profile = assistantProfileSchema.parse(parsed);
+    fileStore.writeJson(assistantProfileRelativePath, profile);
+    rmSync(legacyFilePath, { force: true });
+    return profile;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to parse assistant profile ${legacyFilePath}: ${message}`);
   }
 }
 

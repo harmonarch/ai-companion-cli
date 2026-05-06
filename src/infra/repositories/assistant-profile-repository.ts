@@ -1,31 +1,33 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
+import { FileStore } from "#src/infra/storage/file-store.js";
 import {
   assistantProfileRelativePath,
   assistantProfileSchema,
+  legacyAssistantProfileRelativePath,
   type AssistantProfile,
   type AssistantProfileField,
 } from "#src/types/assistant-profile.js";
 
 export class AssistantProfileRepository {
   private readonly filePath: string;
+  private readonly legacyFilePath: string;
 
-  constructor(private readonly workspaceRoot: string) {
-    this.filePath = path.join(workspaceRoot, assistantProfileRelativePath);
+  constructor(
+    private readonly fileStore: FileStore,
+    workspaceRoot: string,
+  ) {
+    this.filePath = this.fileStore.resolve(assistantProfileRelativePath);
+    this.legacyFilePath = path.join(workspaceRoot, legacyAssistantProfileRelativePath);
   }
 
   get() {
-    if (!existsSync(this.filePath)) {
-      return undefined;
+    const currentProfile = this.readCurrentProfile();
+    if (currentProfile) {
+      return currentProfile;
     }
 
-    try {
-      const parsed = JSON.parse(readFileSync(this.filePath, "utf8"));
-      return assistantProfileSchema.parse(parsed);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to parse assistant profile ${this.filePath}: ${message}`);
-    }
+    return this.migrateLegacyProfile();
   }
 
   setField(field: AssistantProfileField, value: string) {
@@ -40,18 +42,43 @@ export class AssistantProfileRepository {
       },
     });
 
-    writeJsonAtomically(this.filePath, nextProfile);
+    this.fileStore.writeJson(assistantProfileRelativePath, nextProfile);
     return nextProfile;
   }
 
   clear() {
-    rmSync(this.filePath, { force: true });
+    this.fileStore.delete(assistantProfileRelativePath);
+    rmSync(this.legacyFilePath, { force: true });
   }
-}
 
-function writeJsonAtomically(filePath: string, value: unknown) {
-  mkdirSync(path.dirname(filePath), { recursive: true });
-  const tempPath = `${filePath}.${process.pid}.${Date.now()}.${Math.random().toString(16).slice(2)}.tmp`;
-  writeFileSync(tempPath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
-  renameSync(tempPath, filePath);
+  private readCurrentProfile() {
+    const parsed = this.fileStore.readJson(assistantProfileRelativePath);
+    if (parsed === null) {
+      return undefined;
+    }
+
+    try {
+      return assistantProfileSchema.parse(parsed);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to parse assistant profile ${this.filePath}: ${message}`);
+    }
+  }
+
+  private migrateLegacyProfile() {
+    if (!existsSync(this.legacyFilePath)) {
+      return undefined;
+    }
+
+    try {
+      const parsed = JSON.parse(readFileSync(this.legacyFilePath, "utf8"));
+      const profile = assistantProfileSchema.parse(parsed);
+      this.fileStore.writeJson(assistantProfileRelativePath, profile);
+      rmSync(this.legacyFilePath, { force: true });
+      return profile;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to parse assistant profile ${this.legacyFilePath}: ${message}`);
+    }
+  }
 }

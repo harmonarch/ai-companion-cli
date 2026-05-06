@@ -15,6 +15,7 @@ import { MessageRepository } from "#src/infra/repositories/message-repository.js
 import { RunRepository } from "#src/infra/repositories/run-repository.js";
 import { SessionRepository } from "#src/infra/repositories/session-repository.js";
 import { SessionScratchpadRepository } from "#src/infra/repositories/session-scratchpad-repository.js";
+import { SystemPromptRepository } from "#src/infra/repositories/system-prompt-repository.js";
 import { ToolExecutionRepository } from "#src/infra/repositories/tool-execution-repository.js";
 import { createRuntimeConfigService, type RuntimeConfigService } from "#src/infra/config/runtime-config-service.js";
 import { FileStore } from "#src/infra/storage/file-store.js";
@@ -41,12 +42,13 @@ export function createAppServices(): AppServiceBundle {
   const messageRepository = new MessageRepository(fileStore);
   const runRepository = new RunRepository(fileStore);
   const toolExecutionRepository = new ToolExecutionRepository(fileStore);
+  const systemPromptRepository = new SystemPromptRepository(fileStore);
   const emotionStateRepository = new EmotionStateRepository(fileStore);
   const scratchpadRepository = new SessionScratchpadRepository(fileStore);
   const candidateRepository = new MemoryCandidateRepository(fileStore);
   const memoryRecordRepository = new MemoryRecordRepository(fileStore);
   const memoryAuditRepository = new MemoryAuditRepository(fileStore);
-  const assistantProfileRepository = new AssistantProfileRepository(config.workspaceRoot);
+  const assistantProfileRepository = new AssistantProfileRepository(fileStore, config.workspaceRoot);
   const promptLoader = new PromptLoader(config, assistantProfileRepository);
   const memoryService = new MemoryService(
     {
@@ -72,6 +74,7 @@ export function createAppServices(): AppServiceBundle {
     messageRepository,
     runRepository,
     toolExecutionRepository,
+    systemPromptRepository,
     memoryService,
     emotionService,
     assistantProfileRepository,
@@ -88,6 +91,7 @@ export function createAppServices(): AppServiceBundle {
     messageRepository,
     runRepository,
     toolExecutionRepository,
+    systemPromptRepository,
     memoryService,
     emotionService,
   );
