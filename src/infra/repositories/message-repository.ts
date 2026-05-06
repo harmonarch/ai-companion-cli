@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { readdirSync } from "node:fs";
 import { FileStore } from "#src/infra/storage/file-store.js";
 import {
   createTextMessageContent,
@@ -62,8 +63,17 @@ export class MessageRepository {
   }
 
   deleteAll() {
-    for (const filePath of this.store.list("messages")) {
-      this.store.delete(filePath);
+    try {
+      for (const fileName of readdirSync(this.store.resolve("messages"))) {
+        if (fileName.endsWith(".jsonl")) {
+          this.store.delete(`messages/${fileName}`);
+        }
+      }
+    } catch (error) {
+      if (isNotFoundError(error)) {
+        return;
+      }
+      throw error;
     }
   }
 }
@@ -186,4 +196,8 @@ function readObject(value: unknown, field: string) {
 
 function getMessagePath(sessionId: string) {
   return `messages/${sessionId}.jsonl`;
+}
+
+function isNotFoundError(error: unknown) {
+  return error instanceof Error && "code" in error && error.code === "ENOENT";
 }

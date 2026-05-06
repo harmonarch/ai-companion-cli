@@ -89,8 +89,9 @@ export class FileStore {
 
   list(relativeDir: string) {
     try {
+      // 暂时只支持枚举 .json 文件；如果后续确实需要列出别的持久化格式，再从这里扩展。
       return readdirSync(this.resolve(relativeDir), { withFileTypes: true })
-        .filter((entry) => entry.isFile())
+        .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
         .map((entry) => path.posix.join(relativeDir, entry.name));
     } catch (error) {
       if (isNotFoundError(error)) {
