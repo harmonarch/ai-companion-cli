@@ -224,7 +224,9 @@ export class ChatController {
         promptLoader: this.promptLoader,
         session,
       });
-      const memoryContext = this.memoryService.retrieveForPrompt().context;
+      const promptMemory = this.memoryService.retrieveForPrompt(trimmed);
+      const memoryContext = promptMemory.context;
+      this.memoryService.recordPromptHits(promptMemory.records.map((record) => record.id), assistantMessage.createdAt);
       const temporalContext = buildTemporalContext(selectedHistory);
       this.systemPromptRepository.create({
         assistantMessageId: assistantMessage.id,
@@ -234,6 +236,7 @@ export class ChatController {
         model: session.model,
         systemPrompt,
         memoryContext: memoryContext || undefined,
+        memorySelection: promptMemory.memorySelection,
         emotionContext: emotionContext || undefined,
         temporalContext,
         messages: [systemPrompt, memoryContext, emotionContext, temporalContext].filter((value): value is string => Boolean(value)),

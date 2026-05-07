@@ -87,6 +87,8 @@ function parseMemoryRecord(value: unknown): MemoryRecord {
     createdAt: readString(record.createdAt, "memory.createdAt"),
     updatedAt: readString(record.updatedAt, "memory.updatedAt"),
     lastConfirmedAt: readOptionalString(record.lastConfirmedAt, "memory.lastConfirmedAt"),
+    lastInjectedAt: readOptionalString(record.lastInjectedAt, "memory.lastInjectedAt"),
+    promptHitCount: readOptionalNumber(record.promptHitCount, "memory.promptHitCount") ?? 0,
     deletedAt: readOptionalString(record.deletedAt, "memory.deletedAt"),
     supersededBy: readOptionalString(record.supersededBy, "memory.supersededBy"),
   };
@@ -132,6 +134,16 @@ function readOptionalString(value: unknown, field: string) {
 
 function readStringArray(value: unknown, field: string) {
   if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
+    throw new Error(`Invalid ${field}`);
+  }
+  return value;
+}
+
+function readOptionalNumber(value: unknown, field: string) {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (typeof value !== "number" || Number.isNaN(value)) {
     throw new Error(`Invalid ${field}`);
   }
   return value;

@@ -14,9 +14,11 @@ import type {
   SessionScratchpad,
   MemorySensitivity,
 } from "#src/types/memory.js";
+import type { MemoryPromptSelectionRecord } from "#src/types/system-prompt.js";
 import { SessionScratchpadRepository } from "#src/infra/repositories/session-scratchpad-repository.js";
 import { MemoryRecordRepository } from "#src/infra/repositories/memory-record-repository.js";
 import { MemoryAuditRepository } from "#src/infra/repositories/memory-audit-repository.js";
+import { PROMPT_MEMORY_LIMIT, normalizeMemoryText, selectMemoriesForPrompt } from "#src/controller/memory-selection.js";
 
 interface MemoryServiceConfig {
   enabled: boolean;
@@ -100,25 +102,36 @@ export class MemoryService {
     return this.scratchpadRepository.upsert(scratchpad);
   }
 
-  retrieveForPrompt() {
+  retrieveForPrompt(query: string) {
     /**
      * 进入 prompt 的 memory 会先经过状态和敏感度过滤。
-     * 这里返回的不只是 records，还带有已经渲染好的 prompt context。
+     * 这里同时返回选中的 records、原因元数据，以及渲染好的 prompt context。
      */
     if (!this.isEnabled()) {
-      return { records: [], context: "" };
+      return {
+        records: [],
+        context: "",
+        memorySelection: {
+          queryPreview: "",
+          limit: PROMPT_MEMORY_LIMIT,
+          selected: [],
+          omitted: [],
+        } satisfies MemoryPromptSelectionRecord,
+      };
     }
 
-    const records = this.listMemories()
-      .filter((record) => record.status === "active")
-      .filter((record) => !record.deletedAt)
-      .filter((record) => record.sensitivity !== "high")
-      .sort(comparePromptMemoryRecords)
-      .slice(0, 8);
+    const records = this.listMemories();
+    const selection = selectMemoriesForPrompt(records, query);
 
     return {
-      records,
-      context: this.promptLoader.renderMemoryContext(records),
+      records: selection.selectedRecords,
+      context: this.promptLoader.renderMemoryContext(selection.selectedRecords),
+      memorySelection: {
+        queryPreview: normalizeText(query).slice(0, 160),
+        limit: PROMPT_MEMORY_LIMIT,
+        selected: selection.selectedEntries,
+        omitted: selection.omittedEntries,
+      } satisfies MemoryPromptSelectionRecord,
     };
   }
 
@@ -132,6 +145,27 @@ export class MemoryService {
     return records
       .filter((record) => record.status !== "deleted")
       .filter((record) => !record.deletedAt);
+  }
+
+  recordPromptHits(memoryIds: string[], timestamp: string) {
+    if (!this.isEnabled() || memoryIds.length === 0) {
+      return [];
+    }
+
+    return memoryIds.flatMap((memoryId) => {
+      const existing = this.memoryRecordRepository.getById(memoryId);
+      if (!existing) {
+        return [];
+      }
+      if (existing.userId !== this.config.userId || existing.workspaceScope !== this.config.workspaceScope) {
+        return [];
+      }
+
+      return [this.memoryRecordRepository.update(memoryId, {
+        promptHitCount: (existing.promptHitCount ?? 0) + 1,
+        lastInjectedAt: timestamp,
+      })];
+    });
   }
 
   deleteMemory(memoryId: string) {
@@ -272,6 +306,7 @@ export class MemoryService {
           ...candidateToRecord(candidate),
           status: "active",
           lastConfirmedAt: input.assistantMessage.createdAt,
+          promptHitCount: 0,
         });
         const superseded = this.memoryRecordRepository.update(outcome.previous.id, {
           status: "superseded",
@@ -311,6 +346,7 @@ export class MemoryService {
         ...candidateToRecord(candidate),
         status: "active",
         lastConfirmedAt: input.assistantMessage.createdAt,
+        promptHitCount: 0,
       });
       this.memoryAuditRepository.create({
         ...this.getScope(),
@@ -451,37 +487,6 @@ function candidateToRecord(candidate: ExtractedMemoryCandidate) {
   };
 }
 
-function comparePromptMemoryRecords(a: MemoryRecord, b: MemoryRecord) {
-  const priorityDiff = getPromptPriority(b.type) - getPromptPriority(a.type);
-  if (priorityDiff !== 0) {
-    return priorityDiff;
-  }
-
-  const recencyDiff = (b.lastConfirmedAt ?? b.updatedAt).localeCompare(a.lastConfirmedAt ?? a.updatedAt);
-  if (recencyDiff !== 0) {
-    return recencyDiff;
-  }
-
-  return a.id.localeCompare(b.id);
-}
-
-function getPromptPriority(type: MemoryType) {
-  switch (type) {
-    case "preference":
-      return 6;
-    case "constraint":
-      return 5;
-    case "goal":
-      return 4;
-    case "relationship":
-      return 3;
-    case "event":
-      return 2;
-    case "pattern":
-      return 1;
-  }
-}
-
 function appendRecent(existing: string[], next: string | string[], limit: number) {
   const entries = Array.isArray(next) ? next : next ? [next] : [];
   return [...existing, ...entries].filter(Boolean).slice(-limit);
@@ -614,7 +619,7 @@ function readSensitivity(value: unknown): MemorySensitivity | undefined {
 }
 
 function normalizeText(value: string) {
-  return value.replace(/\s+/g, " ").trim();
+  return normalizeMemoryText(value);
 }
 
 function mergeRefs(current: string[], next: string[]) {

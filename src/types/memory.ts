@@ -4,6 +4,15 @@ export type MemoryRecordStatus = "active" | "superseded" | "deleted";
 export type MemoryAuditAction = "create" | "reinforce" | "update" | "delete" | "reject" | "confirm" | "supersede";
 export type MemoryAuditTargetType = "candidate" | "memory";
 export type MemoryEvidenceKind = "message" | "assistant" | "run" | "tool";
+export type MemoryPromptDecisionStatus = "selected" | "omitted";
+export type MemoryPromptDecisionReason =
+  | "selected_subject_match"
+  | "selected_value_match"
+  | "high_sensitivity"
+  | "superseded"
+  | "no_query_match"
+  | "lower_ranked"
+  | "shadowed_by_newer_exact_match";
 
 export interface MemoryScope {
   userId: string;
@@ -30,6 +39,8 @@ export interface MemoryRecord extends MemoryScope {
   createdAt: string;
   updatedAt: string;
   lastConfirmedAt?: string;
+  lastInjectedAt?: string;
+  promptHitCount?: number;
   deletedAt?: string;
   supersededBy?: string;
 }
@@ -53,9 +64,28 @@ export interface MemoryEvidenceRecord {
   unresolvedReason?: string;
 }
 
+export interface MemoryPromptSelectionEntry {
+  memoryId: string;
+  status: MemoryPromptDecisionStatus;
+  reason: MemoryPromptDecisionReason;
+  score?: number;
+}
+
+export interface MemoryPromptUsageRecord {
+  assistantMessageId: string;
+  createdAt: string;
+  queryPreview: string;
+  status: MemoryPromptDecisionStatus;
+  reason: MemoryPromptDecisionReason;
+  score?: number;
+}
+
 export interface MemoryDetailRecord {
   memory: MemoryRecord;
   evidence: MemoryEvidenceRecord[];
+  promptHitCount: number;
+  lastInjectedAt?: string;
+  promptDecisions: MemoryPromptUsageRecord[];
 }
 
 export interface MemoryAuditEvent extends MemoryScope {

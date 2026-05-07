@@ -1,5 +1,6 @@
 import { FileStore } from "#src/infra/storage/file-store.js";
-import type { SystemPromptRecord } from "#src/types/system-prompt.js";
+import type { MemoryPromptDecisionReason, MemoryPromptDecisionStatus, MemoryPromptSelectionEntry } from "#src/types/memory.js";
+import type { MemoryPromptSelectionRecord, SystemPromptRecord } from "#src/types/system-prompt.js";
 
 export class SystemPromptRepository {
   constructor(private readonly store: FileStore) {
@@ -19,6 +20,12 @@ export class SystemPromptRepository {
   getByAssistantMessageId(assistantMessageId: string) {
     const record = this.store.readJson(getSystemPromptPath(assistantMessageId));
     return record ? parseSystemPromptRecord(record) : null;
+  }
+
+  listBySession(sessionId: string) {
+    return listSystemPrompts(this.store)
+      .filter((record) => record.sessionId === sessionId)
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
   }
 
   deleteBySession(sessionId: string) {
@@ -58,10 +65,51 @@ function parseSystemPromptRecord(value: unknown): SystemPromptRecord {
     model: readString(record.model, "systemPrompt.model"),
     systemPrompt: readString(record.systemPrompt, "systemPrompt.systemPrompt"),
     memoryContext: readOptionalString(record.memoryContext, "systemPrompt.memoryContext"),
+    memorySelection: readOptionalMemorySelectionRecord(record.memorySelection, "systemPrompt.memorySelection"),
     emotionContext: readOptionalString(record.emotionContext, "systemPrompt.emotionContext"),
     temporalContext: readOptionalString(record.temporalContext, "systemPrompt.temporalContext"),
     messages: readStringArray(record.messages, "systemPrompt.messages"),
     createdAt: readString(record.createdAt, "systemPrompt.createdAt"),
+  };
+}
+
+function readOptionalMemorySelectionRecord(value: unknown, field: string) {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`Invalid ${field}`);
+  }
+
+  const record = value as Record<string, unknown>;
+  return {
+    queryPreview: readString(record.queryPreview, `${field}.queryPreview`),
+    limit: readNumber(record.limit, `${field}.limit`),
+    selected: readSelectionEntries(record.selected, `${field}.selected`),
+    omitted: readSelectionEntries(record.omitted, `${field}.omitted`),
+  } satisfies MemoryPromptSelectionRecord;
+}
+
+function readSelectionEntries(value: unknown, field: string) {
+  if (!Array.isArray(value)) {
+    throw new Error(`Invalid ${field}`);
+  }
+
+  return value.map((entry, index) => readSelectionEntry(entry, `${field}[${index}]`));
+}
+
+function readSelectionEntry(value: unknown, field: string): MemoryPromptSelectionEntry {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`Invalid ${field}`);
+  }
+
+  const entry = value as Record<string, unknown>;
+  return {
+    memoryId: readString(entry.memoryId, `${field}.memoryId`),
+    status: readDecisionStatus(entry.status, `${field}.status`),
+    reason: readDecisionReason(entry.reason, `${field}.reason`),
+    score: readOptionalNumber(entry.score, `${field}.score`),
   };
 }
 
@@ -84,6 +132,42 @@ function readStringArray(value: unknown, field: string) {
     throw new Error(`Invalid ${field}`);
   }
   return value;
+}
+
+function readNumber(value: unknown, field: string) {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    throw new Error(`Invalid ${field}`);
+  }
+  return value;
+}
+
+function readOptionalNumber(value: unknown, field: string) {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  return readNumber(value, field);
+}
+
+function readDecisionStatus(value: unknown, field: string): MemoryPromptDecisionStatus {
+  if (value === "selected" || value === "omitted") {
+    return value;
+  }
+  throw new Error(`Invalid ${field}`);
+}
+
+function readDecisionReason(value: unknown, field: string): MemoryPromptDecisionReason {
+  if (
+    value === "selected_subject_match"
+    || value === "selected_value_match"
+    || value === "high_sensitivity"
+    || value === "superseded"
+    || value === "no_query_match"
+    || value === "lower_ranked"
+    || value === "shadowed_by_newer_exact_match"
+  ) {
+    return value;
+  }
+  throw new Error(`Invalid ${field}`);
 }
 
 function getSystemPromptPath(assistantMessageId: string) {

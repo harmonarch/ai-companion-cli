@@ -18,8 +18,10 @@ import type {
   MemoryEvidenceKind,
   MemoryEvidenceMessageSummary,
   MemoryEvidenceRecord,
+  MemoryPromptUsageRecord,
   MemoryRecord,
 } from "#src/types/memory.js";
+import type { SystemPromptRecord } from "#src/types/system-prompt.js";
 import type { SessionRecord, SessionSummary } from "#src/types/session.js";
 import type { ToolExecutionRecord } from "#src/types/tool.js";
 import type { EmotionService } from "#src/controller/emotion-service.js";
@@ -81,13 +83,14 @@ export class SessionStore {
     });
     const memories = this.memoryService.listMemories();
     const context = this.createResolutionContext();
+    const promptUsageByMemoryId = new Map<string, MemoryPromptUsageRecord[]>();
 
     return {
       session,
       messages: [],
       toolExecutions: [],
       memories,
-      memoryDetails: memories.map((memory) => this.resolveMemoryDetail(memory, context)),
+      memoryDetails: memories.map((memory) => this.resolveMemoryDetail(memory, context, promptUsageByMemoryId)),
       emotion: this.emotionService.getOrCreate(session.id),
     };
   }
@@ -104,13 +107,14 @@ export class SessionStore {
 
     const memories = this.memoryService.listMemories();
     const context = this.createResolutionContext();
+    const promptUsageByMemoryId = buildPromptUsageIndex(this.systemPromptRepository.listBySession(sessionId));
 
     return {
       session,
       messages: this.messageRepository.listBySession(sessionId).filter((message) => message.content.length > 0),
       toolExecutions: this.toolExecutionRepository.listBySession(sessionId),
       memories,
-      memoryDetails: memories.map((memory) => this.resolveMemoryDetail(memory, context)),
+      memoryDetails: memories.map((memory) => this.resolveMemoryDetail(memory, context, promptUsageByMemoryId)),
       emotion: this.emotionService.getOrCreate(sessionId),
     };
   }
@@ -174,7 +178,11 @@ export class SessionStore {
     };
   }
 
-  private resolveMemoryDetail(memory: MemoryRecord, context: ResolutionContext): MemoryDetailRecord {
+  private resolveMemoryDetail(
+    memory: MemoryRecord,
+    context: ResolutionContext,
+    promptUsageByMemoryId: Map<string, MemoryPromptUsageRecord[]>,
+  ): MemoryDetailRecord {
     /**
      * memory record 里只保存 source refs。
      * 这里把 message/run/tool 这些引用解析成 UI 可展示的 evidence，方便用户回看这条记忆来自哪一轮对话。
@@ -185,6 +193,9 @@ export class SessionStore {
     return {
       memory,
       evidence: parsedRefs.map((ref) => this.resolveEvidenceRef(ref, inferredSessionId, context)),
+      promptHitCount: memory.promptHitCount ?? 0,
+      lastInjectedAt: memory.lastInjectedAt,
+      promptDecisions: promptUsageByMemoryId.get(memory.id) ?? [],
     };
   }
 
@@ -360,4 +371,34 @@ export class SessionStore {
     context.messagesBySessionId.set(sessionId, messages);
     return messages;
   }
+}
+
+function buildPromptUsageIndex(records: SystemPromptRecord[]) {
+  const usageByMemoryId = new Map<string, MemoryPromptUsageRecord[]>();
+
+  for (const record of records) {
+    if (!record.memorySelection) {
+      continue;
+    }
+
+    const entries = [
+      ...record.memorySelection.selected,
+      ...record.memorySelection.omitted,
+    ];
+
+    for (const entry of entries) {
+      const usage: MemoryPromptUsageRecord = {
+        assistantMessageId: record.assistantMessageId,
+        createdAt: record.createdAt,
+        queryPreview: record.memorySelection.queryPreview,
+        status: entry.status,
+        reason: entry.reason,
+        score: entry.score,
+      };
+      const existing = usageByMemoryId.get(entry.memoryId) ?? [];
+      usageByMemoryId.set(entry.memoryId, [...existing, usage].slice(0, 5));
+    }
+  }
+
+  return usageByMemoryId;
 }

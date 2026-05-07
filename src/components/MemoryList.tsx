@@ -2,10 +2,11 @@ import React from "react";
 import { Box, Text } from "ink";
 import pc from "picocolors";
 import type { MemoryEditState } from "#src/app/ui-state.js";
-import type { MemoryDetailRecord } from "#src/types/memory.js";
+import type { MemoryDetailRecord, MemoryPromptUsageRecord } from "#src/types/memory.js";
 import { sanitizeSingleLineText } from "#src/utils/sanitize-text.js";
 
 const MAX_EVIDENCE_ITEMS = 3;
+const MAX_PROMPT_USAGE_ITEMS = 4;
 
 export function MemoryList({
   memoryDetails,
@@ -42,7 +43,7 @@ export function MemoryList({
   return (
     <Box flexDirection="column">
       <Text>{pc.gray("memory · workspace")}</Text>
-      {memoryDetails.map(({ memory, evidence }, index) => {
+      {memoryDetails.map(({ memory, evidence, promptHitCount, lastInjectedAt, promptDecisions }, index) => {
         const selected = index === selectedIndex;
         const confirmingDelete = memory.id === deleteConfirmMemoryId;
         const expanded = memory.id === viewMemoryId || editState?.memoryId === memory.id;
@@ -52,6 +53,8 @@ export function MemoryList({
         const tone = memory.status === "active" ? pc.green : memory.status === "superseded" ? pc.yellow : pc.white;
         const visibleEvidence = evidence.slice(0, MAX_EVIDENCE_ITEMS);
         const remainingEvidenceCount = Math.max(0, evidence.length - visibleEvidence.length);
+        const visiblePromptUsage = promptDecisions.slice(0, MAX_PROMPT_USAGE_ITEMS);
+        const remainingPromptUsageCount = Math.max(0, promptDecisions.length - visiblePromptUsage.length);
 
         return (
           <Box key={memory.id} flexDirection="column" marginBottom={1}>
@@ -75,6 +78,16 @@ export function MemoryList({
                   <>
                     <Text>{pc.gray("  subject")} {sanitizeSingleLineText(memory.subject, 200)}</Text>
                     <Text>{pc.gray("  value")} {sanitizeSingleLineText(memory.value, 400)}</Text>
+                    <Text>{pc.gray(`  prompt usage ${promptHitCount}`)}</Text>
+                    <Text>{pc.gray(`  last injected ${lastInjectedAt ?? "never"}`)}</Text>
+                    <Text>{pc.gray("  recent prompt decisions")}</Text>
+                    {visiblePromptUsage.length === 0 ? <Text>{pc.gray("    no prompt decisions in this session")}</Text> : null}
+                    {visiblePromptUsage.map((item, promptUsageIndex) => (
+                      <Text key={`${item.assistantMessageId}-${promptUsageIndex}`}>
+                        {pc.gray(`    ${formatPromptDecision(item)}`)}
+                      </Text>
+                    ))}
+                    {remainingPromptUsageCount > 0 ? <Text>{pc.gray(`    +${remainingPromptUsageCount} more prompt decisions`)}</Text> : null}
                     <Text>{pc.gray("  evidence")}</Text>
                     {visibleEvidence.map((item, evidenceIndex) => (
                       <Box key={`${item.rawRef}-${evidenceIndex}`} flexDirection="column" marginBottom={1}>
@@ -124,4 +137,12 @@ function EditableField({
       {after}
     </>
   );
+}
+
+function formatPromptDecision(record: MemoryPromptUsageRecord) {
+  const statusLabel = record.status === "selected" ? "selected" : "omitted";
+  const reasonLabel = record.reason.replaceAll("_", " ");
+  const scoreLabel = record.score === undefined ? "" : ` · score ${record.score}`;
+  const queryLabel = record.queryPreview ? ` · ${sanitizeSingleLineText(record.queryPreview, 60)}` : "";
+  return `${record.createdAt} · ${statusLabel} · ${reasonLabel}${scoreLabel}${queryLabel}`;
 }
