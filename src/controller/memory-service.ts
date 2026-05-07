@@ -114,7 +114,8 @@ export class MemoryService {
       .filter((record) => !record.deletedAt)
       .filter((record) => !record.expiresAt || Date.parse(record.expiresAt) > now)
       .filter((record) => record.sensitivity !== "high")
-      .sort((a, b) => (b.lastConfirmedAt ?? b.updatedAt).localeCompare(a.lastConfirmedAt ?? a.updatedAt));
+      .sort(comparePromptMemoryRecords)
+      .slice(0, 8);
 
     return {
       records,
@@ -232,12 +233,15 @@ export class MemoryService {
     const scratchpad = this.scratchpadRepository.getBySessionId(input.session.id);
     const candidates = await this.extractCandidates({ ...input, scratchpad });
     for (const extracted of candidates) {
-      const candidate = this.candidateRepository.create(extracted);
-      const outcome = this.consolidateCandidate(candidate);
+      const outcome = this.consolidateCandidate(extracted);
+      const candidate = this.candidateRepository.create({
+        ...extracted,
+        status: outcome.kind === "reject" ? "rejected" : extracted.status,
+      });
 
       if (outcome.kind === "reject") {
         const rejected = this.candidateRepository.update(candidate.id, {
-          status: outcome.status,
+          status: "rejected",
           reason: outcome.reason,
         });
         this.memoryAuditRepository.create({
@@ -403,13 +407,13 @@ export class MemoryService {
     );
   }
 
-  private consolidateCandidate(candidate: MemoryCandidate): ConsolidationOutcome {
+  private consolidateCandidate(candidate: ExtractedMemoryCandidate): ConsolidationOutcome {
     /**
      * consolidateCandidate 决定候选记忆的命运：reject / duplicate / update / create。
      * 这里集中承载自动写入策略，便于后续调整规则而不改动上游抽取流程。
      */
     if (!this.config.autoWriteLowRisk) {
-      return reject("automatic memory writes are disabled", "needs_confirmation");
+      return reject("automatic memory writes are disabled", "rejected");
     }
 
     if (!candidate.explicit) {
@@ -424,7 +428,7 @@ export class MemoryService {
       .findBySubject(this.getScope(), candidate.subject, candidate.type)
       .find((record) => record.status === "deleted");
     if (tombstone) {
-      return reject("subject was deleted before and now requires explicit reconfirmation", "needs_confirmation");
+      return reject("subject was deleted before and automatic rewrite stays disabled", "rejected");
     }
 
     const related = this.memoryRecordRepository.findBySubject(this.getScope(), candidate.subject, candidate.type);
@@ -457,6 +461,8 @@ export class MemoryService {
   }
 }
 
+type ExtractedMemoryCandidate = Omit<MemoryCandidate, "id" | "createdAt" | "updatedAt">;
+
 type ConsolidationOutcome =
   | { kind: "create"; kindValue: MemoryKind; reason: string; expiresAt?: string }
   | { kind: "duplicate"; record: MemoryRecord; reason: string }
@@ -467,7 +473,7 @@ function reject(reason: string, status: MemoryCandidate["status"]): Consolidatio
   return { kind: "reject", status, reason };
 }
 
-function candidateToRecord(candidate: MemoryCandidate) {
+function candidateToRecord(candidate: ExtractedMemoryCandidate | MemoryCandidate) {
   return {
     userId: candidate.userId,
     workspaceScope: candidate.workspaceScope,
@@ -482,14 +488,14 @@ function candidateToRecord(candidate: MemoryCandidate) {
   };
 }
 
-function inferMemoryKind(candidate: MemoryCandidate): MemoryKind {
+function inferMemoryKind(candidate: ExtractedMemoryCandidate | MemoryCandidate): MemoryKind {
   if (candidate.type === "event" || candidate.type === "pattern") {
     return "episodic";
   }
   return "profile";
 }
 
-function inferExpiresAt(candidate: MemoryCandidate) {
+function inferExpiresAt(candidate: ExtractedMemoryCandidate | MemoryCandidate) {
   if (candidate.type !== "event" && candidate.type !== "pattern") {
     return undefined;
   }
@@ -498,15 +504,35 @@ function inferExpiresAt(candidate: MemoryCandidate) {
   return next.toISOString();
 }
 
-function summarizeStylePreference(lower: string) {
-  const parts: string[] = [];
-  if (lower.includes("brief") || lower.includes("short") || lower.includes("concise")) {
-    parts.push("brief");
+function comparePromptMemoryRecords(a: MemoryRecord, b: MemoryRecord) {
+  const priorityDiff = getPromptPriority(b.type) - getPromptPriority(a.type);
+  if (priorityDiff !== 0) {
+    return priorityDiff;
   }
-  if (lower.includes("direct")) {
-    parts.push("direct");
+
+  const recencyDiff = (b.lastConfirmedAt ?? b.updatedAt).localeCompare(a.lastConfirmedAt ?? a.updatedAt);
+  if (recencyDiff !== 0) {
+    return recencyDiff;
   }
-  return parts.length > 0 ? parts.join(" and ") : "brief and direct";
+
+  return a.id.localeCompare(b.id);
+}
+
+function getPromptPriority(type: MemoryType) {
+  switch (type) {
+    case "preference":
+      return 6;
+    case "constraint":
+      return 5;
+    case "goal":
+      return 4;
+    case "relationship":
+      return 3;
+    case "event":
+      return 2;
+    case "pattern":
+      return 1;
+  }
 }
 
 function appendRecent(existing: string[], next: string | string[], limit: number) {

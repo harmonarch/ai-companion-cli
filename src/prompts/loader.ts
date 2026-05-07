@@ -45,7 +45,7 @@ export class PromptLoader {
 
     const template = readRequiredBuiltInAuxiliaryPromptFile(builtInMemoryContextPromptFiles, "memory context");
     const memoryLines = records
-      .map((record) => `- ${record.subject}: ${record.value} (${record.kind}, ${record.type}, confidence ${record.confidence.toFixed(2)})`)
+      .map((record) => `- [${record.type}] ${record.subject}: ${record.value}`)
       .join("\n");
 
     return template.trim().replaceAll("{{memoryLines}}", memoryLines);

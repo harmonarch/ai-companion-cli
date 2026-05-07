@@ -173,7 +173,7 @@ export function loadConfig(): AppConfig {
         ?? "local-user",
       autoWriteLowRisk: readBoolean(process.env.AI_COMPANION_MEMORY_AUTO_WRITE_LOW_RISK)
         ?? fileConfig.memory?.autoWriteLowRisk
-        ?? true,
+        ?? false,
     },
     assistantProfile: readAssistantProfile(storagePath),
     setup,
