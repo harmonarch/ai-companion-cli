@@ -112,7 +112,7 @@ export function executeAppCommand({
         { type: "dispatch", action: { type: "profile-clear-confirmation/set", value: false } },
         { type: "dispatch", action: { type: "overlay/memory/open", selectedIndex: 0 } },
         { type: "setSessions", sessions: sessionStore.listSessions() },
-        { type: "dispatch", action: { type: "status/set", value: "Memory opened." } },
+        { type: "dispatch", action: { type: "status/set", value: "Workspace memory opened." } },
       );
 
       return { effects };

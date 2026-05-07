@@ -48,13 +48,8 @@ export class MemoryRecordRepository {
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }
 
-  listBySession(scope: MemoryScope, sessionId: string, options?: { includeLegacy?: boolean }) {
-    return this.listByScope(scope).filter((record) => record.sessionId === sessionId || (options?.includeLegacy && !record.sessionId));
-  }
-
-  findBySubject(scope: MemoryScope, subject: string, type?: MemoryType, sessionId?: string) {
-    const records = sessionId ? this.listBySession(scope, sessionId, { includeLegacy: false }) : this.listByScope(scope);
-    return records.filter((record) => record.subject === subject && (type ? record.type === type : true));
+  findBySubject(scope: MemoryScope, subject: string, type?: MemoryType) {
+    return this.listByScope(scope).filter((record) => record.subject === subject && (type ? record.type === type : true));
   }
 
   deleteByScope(scope: MemoryScope) {
@@ -83,29 +78,18 @@ function parseMemoryRecord(value: unknown): MemoryRecord {
     userId: readString(record.userId, "memory.userId"),
     workspaceScope: readString(record.workspaceScope, "memory.workspaceScope"),
     sessionId: readOptionalString(record.sessionId, "memory.sessionId"),
-    kind: readKind(record.kind),
     type: readMemoryType(record.type),
     subject: readString(record.subject, "memory.subject"),
     value: readString(record.value, "memory.value"),
-    confidence: readNumber(record.confidence, "memory.confidence"),
     sensitivity: readSensitivity(record.sensitivity),
-    explicit: readBoolean(record.explicit, "memory.explicit"),
     sourceRefs: readStringArray(record.sourceRefs, "memory.sourceRefs"),
     status: readStatus(record.status),
     createdAt: readString(record.createdAt, "memory.createdAt"),
     updatedAt: readString(record.updatedAt, "memory.updatedAt"),
     lastConfirmedAt: readOptionalString(record.lastConfirmedAt, "memory.lastConfirmedAt"),
-    expiresAt: readOptionalString(record.expiresAt, "memory.expiresAt"),
     deletedAt: readOptionalString(record.deletedAt, "memory.deletedAt"),
     supersededBy: readOptionalString(record.supersededBy, "memory.supersededBy"),
   };
-}
-
-function readKind(value: unknown) {
-  if (value === "profile" || value === "episodic") {
-    return value;
-  }
-  throw new Error("Invalid memory kind");
 }
 
 function readMemoryType(value: unknown) {
@@ -123,8 +107,11 @@ function readSensitivity(value: unknown) {
 }
 
 function readStatus(value: unknown): MemoryRecordStatus {
-  if (value === "pending" || value === "active" || value === "superseded" || value === "archived" || value === "deleted") {
+  if (value === "active" || value === "superseded" || value === "deleted") {
     return value;
+  }
+  if (value === "pending" || value === "archived") {
+    return "superseded";
   }
   throw new Error("Invalid memory status");
 }
@@ -145,20 +132,6 @@ function readOptionalString(value: unknown, field: string) {
 
 function readStringArray(value: unknown, field: string) {
   if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
-    throw new Error(`Invalid ${field}`);
-  }
-  return value;
-}
-
-function readNumber(value: unknown, field: string) {
-  if (typeof value !== "number" || Number.isNaN(value)) {
-    throw new Error(`Invalid ${field}`);
-  }
-  return value;
-}
-
-function readBoolean(value: unknown, field: string) {
-  if (typeof value !== "boolean") {
     throw new Error(`Invalid ${field}`);
   }
   return value;

@@ -13,7 +13,6 @@ export function MemoryList({
   deleteConfirmMemoryId,
   viewMemoryId,
   editState,
-  sessionTitle,
   escapeHint = "Esc close",
 }: {
   memoryDetails: MemoryDetailRecord[];
@@ -21,14 +20,13 @@ export function MemoryList({
   deleteConfirmMemoryId: string | null;
   viewMemoryId: string | null;
   editState: MemoryEditState | null;
-  sessionTitle?: string;
   escapeHint?: string;
 }) {
   if (memoryDetails.length === 0) {
     return (
       <Box flexDirection="column">
-        <Text>{pc.gray(sessionTitle ? `memory · ${sanitizeSingleLineText(sessionTitle, 80)}` : "memory")}</Text>
-        <Text>{pc.gray("No long-term memories for this session.")}</Text>
+        <Text>{pc.gray("memory · workspace")}</Text>
+        <Text>{pc.gray("No long-term memories in this workspace.")}</Text>
         <Text>{pc.gray(escapeHint)}</Text>
       </Box>
     );
@@ -43,7 +41,7 @@ export function MemoryList({
 
   return (
     <Box flexDirection="column">
-      <Text>{pc.gray(sessionTitle ? `memory · ${sanitizeSingleLineText(sessionTitle, 80)}` : "memory")}</Text>
+      <Text>{pc.gray("memory · workspace")}</Text>
       {memoryDetails.map(({ memory, evidence }, index) => {
         const selected = index === selectedIndex;
         const confirmingDelete = memory.id === deleteConfirmMemoryId;
@@ -65,7 +63,7 @@ export function MemoryList({
             {expanded ? (
               <Box flexDirection="column">
                 <Text>{pc.gray(`  id ${memory.id}`)}</Text>
-                <Text>{pc.gray(`  kind ${memory.kind} · confidence ${memory.confidence.toFixed(2)} · evidence ${memory.sourceRefs.length}`)}</Text>
+                <Text>{pc.gray(`  evidence ${memory.sourceRefs.length}`)}</Text>
                 <Text>{pc.gray(`  created ${memory.createdAt}`)}</Text>
                 <Text>{pc.gray(`  updated ${memory.updatedAt}`)}</Text>
                 {editState?.memoryId === memory.id ? (
@@ -80,7 +78,7 @@ export function MemoryList({
                     <Text>{pc.gray("  evidence")}</Text>
                     {visibleEvidence.map((item, evidenceIndex) => (
                       <Box key={`${item.rawRef}-${evidenceIndex}`} flexDirection="column" marginBottom={1}>
-                        <Text>{pc.gray(`    ${sanitizeSingleLineText(item.sessionTitle ?? item.sessionId ?? "unknown session", 80)} · ${item.message?.role ?? item.kind}${item.toolName ? ` · ${sanitizeSingleLineText(item.toolName, 40)}` : ""}${item.message?.createdAt ? ` · ${item.message.createdAt}` : ""}`)}</Text>
+                        <Text>{pc.gray(`    source session ${sanitizeSingleLineText(item.sessionTitle ?? item.sessionId ?? "unknown", 80)} · ${item.message?.role ?? item.kind}${item.toolName ? ` · ${sanitizeSingleLineText(item.toolName, 40)}` : ""}${item.message?.createdAt ? ` · ${item.message.createdAt}` : ""}`)}</Text>
                         <Text>{pc.gray(`    ${sanitizeSingleLineText(item.message?.preview ?? item.rawRef, 140)}`)}</Text>
                         {item.unresolvedReason ? <Text>{pc.yellow(`    ${sanitizeSingleLineText(item.unresolvedReason, 120)}`)}</Text> : null}
                       </Box>

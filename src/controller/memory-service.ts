@@ -8,15 +8,13 @@ import { messageContentToPlainText, type ChatMessage } from "#src/types/chat.js"
 import type { ToolExecutionRecord } from "#src/types/tool.js";
 import type { RunRecord } from "#src/types/run.js";
 import type {
-  MemoryCandidate,
-  MemoryKind,
   MemoryRecord,
   MemoryScope,
   MemoryType,
   SessionScratchpad,
+  MemorySensitivity,
 } from "#src/types/memory.js";
 import { SessionScratchpadRepository } from "#src/infra/repositories/session-scratchpad-repository.js";
-import { MemoryCandidateRepository } from "#src/infra/repositories/memory-candidate-repository.js";
 import { MemoryRecordRepository } from "#src/infra/repositories/memory-record-repository.js";
 import { MemoryAuditRepository } from "#src/infra/repositories/memory-audit-repository.js";
 
@@ -36,19 +34,27 @@ interface ProcessTurnInput {
   extractMemoryCandidates(prompt: string): Promise<string>;
 }
 
+interface ExtractedMemoryCandidate extends MemoryScope {
+  sessionId: string;
+  type: MemoryType;
+  subject: string;
+  value: string;
+  sensitivity: MemorySensitivity;
+  explicit: boolean;
+  evidenceRefs: string[];
+}
+
 export class MemoryService {
   constructor(
     private readonly config: MemoryServiceConfig,
     private readonly promptLoader: PromptLoader,
     private readonly scratchpadRepository: SessionScratchpadRepository,
-    private readonly candidateRepository: MemoryCandidateRepository,
     private readonly memoryRecordRepository: MemoryRecordRepository,
     private readonly memoryAuditRepository: MemoryAuditRepository,
   ) {}
 
   deleteSessionState(sessionId: string) {
     this.scratchpadRepository.deleteBySession(sessionId);
-    this.candidateRepository.deleteBySession(sessionId);
   }
 
   resetAll() {
@@ -57,7 +63,6 @@ export class MemoryService {
     }
 
     this.scratchpadRepository.deleteAll();
-    this.candidateRepository.deleteAll();
     this.memoryRecordRepository.deleteByScope(this.getScope());
     this.memoryAuditRepository.deleteByScope(this.getScope());
   }
@@ -87,10 +92,6 @@ export class MemoryService {
     const scratchpad: SessionScratchpad = {
       sessionId,
       currentTask: input.trim() || existing?.currentTask,
-      answerStrategy: existing?.answerStrategy,
-      temporaryConstraints: existing?.temporaryConstraints ?? [],
-      openQuestions: existing?.openQuestions ?? [],
-      discussedOptions: existing?.discussedOptions ?? [],
       recentObservations: appendRecent(existing?.recentObservations ?? [], normalizeText(input), 6),
       toolFindings: appendRecent(existing?.toolFindings ?? [], toolExecutions.map((execution) => execution.summary), 6),
       updatedAt: now,
@@ -101,18 +102,16 @@ export class MemoryService {
 
   retrieveForPrompt() {
     /**
-     * 进入 prompt 的 memory 会先经过状态、过期时间和敏感度过滤。
+     * 进入 prompt 的 memory 会先经过状态和敏感度过滤。
      * 这里返回的不只是 records，还带有已经渲染好的 prompt context。
      */
     if (!this.isEnabled()) {
       return { records: [], context: "" };
     }
 
-    const now = Date.now();
     const records = this.listMemories()
       .filter((record) => record.status === "active")
       .filter((record) => !record.deletedAt)
-      .filter((record) => !record.expiresAt || Date.parse(record.expiresAt) > now)
       .filter((record) => record.sensitivity !== "high")
       .sort(comparePromptMemoryRecords)
       .slice(0, 8);
@@ -135,15 +134,12 @@ export class MemoryService {
       .filter((record) => !record.deletedAt);
   }
 
-  deleteMemory(memoryId: string, sessionId?: string) {
+  deleteMemory(memoryId: string) {
     const existing = this.memoryRecordRepository.getById(memoryId);
     if (!existing) {
       throw new Error(`Memory not found: ${memoryId}`);
     }
     if (existing.userId !== this.config.userId || existing.workspaceScope !== this.config.workspaceScope) {
-      throw new Error(`Memory not found: ${memoryId}`);
-    }
-    if (sessionId && existing.sessionId !== sessionId) {
       throw new Error(`Memory not found: ${memoryId}`);
     }
     if (existing.status === "deleted") {
@@ -173,15 +169,12 @@ export class MemoryService {
     return next;
   }
 
-  updateMemory(memoryId: string, patch: { subject?: string; value?: string }, sessionId?: string) {
+  updateMemory(memoryId: string, patch: { subject?: string; value?: string }) {
     const existing = this.memoryRecordRepository.getById(memoryId);
     if (!existing) {
       throw new Error(`Memory not found: ${memoryId}`);
     }
     if (existing.userId !== this.config.userId || existing.workspaceScope !== this.config.workspaceScope) {
-      throw new Error(`Memory not found: ${memoryId}`);
-    }
-    if (sessionId && existing.sessionId !== sessionId) {
       throw new Error(`Memory not found: ${memoryId}`);
     }
 
@@ -224,7 +217,7 @@ export class MemoryService {
   async processCompletedTurn(input: ProcessTurnInput) {
     /**
      * 一轮对话结束后，memory 流程才真正开始。
-     * 顺序是：读取 scratchpad -> 让模型抽候选 -> 候选去重/判定 -> 写入或驳回长期记忆 -> 记录 audit。
+     * 顺序是：读取 scratchpad -> 让模型抽候选 -> 候选去重/判定 -> 写入或驳回长期记忆 -> 记录审计。
      */
     if (!this.isEnabled()) {
       return;
@@ -232,44 +225,30 @@ export class MemoryService {
 
     const scratchpad = this.scratchpadRepository.getBySessionId(input.session.id);
     const candidates = await this.extractCandidates({ ...input, scratchpad });
-    for (const extracted of candidates) {
-      const outcome = this.consolidateCandidate(extracted);
-      const candidate = this.candidateRepository.create({
-        ...extracted,
-        status: outcome.kind === "reject" ? "rejected" : extracted.status,
-      });
+    for (const candidate of candidates) {
+      const outcome = this.consolidateCandidate(candidate);
 
       if (outcome.kind === "reject") {
-        const rejected = this.candidateRepository.update(candidate.id, {
-          status: "rejected",
-          reason: outcome.reason,
-        });
         this.memoryAuditRepository.create({
           ...this.getScope(),
-          targetId: rejected.id,
+          targetId: `${input.run.id}:${candidate.type}:${candidate.subject}`,
           targetType: "candidate",
           action: "reject",
           actor: "system",
           sessionId: input.session.id,
           runId: input.run.id,
-          after: snapshotCandidate(rejected),
+          after: snapshotCandidate(candidate),
           reason: outcome.reason,
-          sourceRefs: rejected.evidenceRefs,
+          sourceRefs: candidate.evidenceRefs,
           timestamp: new Date().toISOString(),
         });
         continue;
       }
 
-      const promotedCandidate = this.candidateRepository.update(candidate.id, {
-        status: "promoted",
-        reason: outcome.reason,
-      });
-
       if (outcome.kind === "duplicate") {
         const updated = this.memoryRecordRepository.update(outcome.record.id, {
-          confidence: clampConfidence(Math.max(outcome.record.confidence, promotedCandidate.confidence)),
           lastConfirmedAt: input.assistantMessage.createdAt,
-          sourceRefs: mergeRefs(outcome.record.sourceRefs, promotedCandidate.evidenceRefs),
+          sourceRefs: mergeRefs(outcome.record.sourceRefs, candidate.evidenceRefs),
         });
         this.memoryAuditRepository.create({
           ...this.getScope(),
@@ -282,7 +261,7 @@ export class MemoryService {
           before: snapshotMemory(outcome.record),
           after: snapshotMemory(updated),
           reason: outcome.reason,
-          sourceRefs: promotedCandidate.evidenceRefs,
+          sourceRefs: candidate.evidenceRefs,
           timestamp: new Date().toISOString(),
         });
         continue;
@@ -290,11 +269,9 @@ export class MemoryService {
 
       if (outcome.kind === "update") {
         const created = this.memoryRecordRepository.create({
-          ...candidateToRecord(promotedCandidate),
-          kind: outcome.kindValue,
+          ...candidateToRecord(candidate),
           status: "active",
           lastConfirmedAt: input.assistantMessage.createdAt,
-          expiresAt: outcome.expiresAt,
         });
         const superseded = this.memoryRecordRepository.update(outcome.previous.id, {
           status: "superseded",
@@ -311,7 +288,7 @@ export class MemoryService {
           before: snapshotMemory(outcome.previous),
           after: snapshotMemory(superseded),
           reason: outcome.reason,
-          sourceRefs: promotedCandidate.evidenceRefs,
+          sourceRefs: candidate.evidenceRefs,
           timestamp: new Date().toISOString(),
         });
         this.memoryAuditRepository.create({
@@ -324,18 +301,16 @@ export class MemoryService {
           runId: input.run.id,
           after: snapshotMemory(created),
           reason: outcome.reason,
-          sourceRefs: promotedCandidate.evidenceRefs,
+          sourceRefs: candidate.evidenceRefs,
           timestamp: new Date().toISOString(),
         });
         continue;
       }
 
       const created = this.memoryRecordRepository.create({
-        ...candidateToRecord(promotedCandidate),
-        kind: outcome.kindValue,
+        ...candidateToRecord(candidate),
         status: "active",
         lastConfirmedAt: input.assistantMessage.createdAt,
-        expiresAt: outcome.expiresAt,
       });
       this.memoryAuditRepository.create({
         ...this.getScope(),
@@ -347,7 +322,7 @@ export class MemoryService {
         runId: input.run.id,
         after: snapshotMemory(created),
         reason: outcome.reason,
-        sourceRefs: promotedCandidate.evidenceRefs,
+        sourceRefs: candidate.evidenceRefs,
         timestamp: new Date().toISOString(),
       });
     }
@@ -389,19 +364,15 @@ export class MemoryService {
 
     return dedupeCandidates(
       extracted
-        .map((candidate): Omit<MemoryCandidate, "id" | "createdAt" | "updatedAt"> => ({
+        .map((candidate): ExtractedMemoryCandidate => ({
           ...this.getScope(),
           sessionId: input.session.id,
           type: candidate.type,
           subject: normalizeText(candidate.subject).slice(0, 120),
           value: normalizeText(candidate.value).slice(0, 280),
-          confidence: clampConfidence(candidate.confidence ?? 0.7),
           sensitivity: candidate.sensitivity ?? "low",
           explicit: candidate.explicit ?? false,
           evidenceRefs,
-          status: "pending",
-          reason: candidate.reason ?? "model extracted candidate",
-          observedAt: input.userMessage.createdAt,
         }))
         .filter((candidate) => candidate.subject && candidate.value),
     );
@@ -413,22 +384,22 @@ export class MemoryService {
      * 这里集中承载自动写入策略，便于后续调整规则而不改动上游抽取流程。
      */
     if (!this.config.autoWriteLowRisk) {
-      return reject("automatic memory writes are disabled", "rejected");
+      return reject("automatic memory writes are disabled");
     }
 
     if (!candidate.explicit) {
-      return reject("candidate is not explicit", "rejected");
+      return reject("candidate is not explicit");
     }
 
     if (candidate.sensitivity !== "low") {
-      return reject("sensitive candidate stays out of automatic long-term memory", "rejected");
+      return reject("sensitive candidate stays out of automatic long-term memory");
     }
 
     const tombstone = this.memoryRecordRepository
       .findBySubject(this.getScope(), candidate.subject, candidate.type)
       .find((record) => record.status === "deleted");
     if (tombstone) {
-      return reject("subject was deleted before and automatic rewrite stays disabled", "rejected");
+      return reject("subject was deleted before and automatic rewrite stays disabled");
     }
 
     const related = this.memoryRecordRepository.findBySubject(this.getScope(), candidate.subject, candidate.type);
@@ -437,9 +408,7 @@ export class MemoryService {
     if (!active) {
       return {
         kind: "create",
-        kindValue: inferMemoryKind(candidate),
         reason: "new active memory",
-        expiresAt: inferExpiresAt(candidate),
       };
     }
 
@@ -454,26 +423,22 @@ export class MemoryService {
     return {
       kind: "update",
       previous: active,
-      kindValue: inferMemoryKind(candidate),
       reason: "new explicit value supersedes existing active memory",
-      expiresAt: inferExpiresAt(candidate),
     };
   }
 }
 
-type ExtractedMemoryCandidate = Omit<MemoryCandidate, "id" | "createdAt" | "updatedAt">;
-
 type ConsolidationOutcome =
-  | { kind: "create"; kindValue: MemoryKind; reason: string; expiresAt?: string }
+  | { kind: "create"; reason: string }
   | { kind: "duplicate"; record: MemoryRecord; reason: string }
-  | { kind: "update"; previous: MemoryRecord; kindValue: MemoryKind; reason: string; expiresAt?: string }
-  | { kind: "reject"; status: MemoryCandidate["status"]; reason: string };
+  | { kind: "update"; previous: MemoryRecord; reason: string }
+  | { kind: "reject"; reason: string };
 
-function reject(reason: string, status: MemoryCandidate["status"]): ConsolidationOutcome {
-  return { kind: "reject", status, reason };
+function reject(reason: string): ConsolidationOutcome {
+  return { kind: "reject", reason };
 }
 
-function candidateToRecord(candidate: ExtractedMemoryCandidate | MemoryCandidate) {
+function candidateToRecord(candidate: ExtractedMemoryCandidate) {
   return {
     userId: candidate.userId,
     workspaceScope: candidate.workspaceScope,
@@ -481,27 +446,9 @@ function candidateToRecord(candidate: ExtractedMemoryCandidate | MemoryCandidate
     type: candidate.type,
     subject: candidate.subject,
     value: candidate.value,
-    confidence: clampConfidence(candidate.confidence),
     sensitivity: candidate.sensitivity,
-    explicit: candidate.explicit,
     sourceRefs: candidate.evidenceRefs,
   };
-}
-
-function inferMemoryKind(candidate: ExtractedMemoryCandidate | MemoryCandidate): MemoryKind {
-  if (candidate.type === "event" || candidate.type === "pattern") {
-    return "episodic";
-  }
-  return "profile";
-}
-
-function inferExpiresAt(candidate: ExtractedMemoryCandidate | MemoryCandidate) {
-  if (candidate.type !== "event" && candidate.type !== "pattern") {
-    return undefined;
-  }
-  const next = new Date();
-  next.setDate(next.getDate() + 30);
-  return next.toISOString();
 }
 
 function comparePromptMemoryRecords(a: MemoryRecord, b: MemoryRecord) {
@@ -560,7 +507,7 @@ function buildExtractionPrompt({
     "",
     "Return JSON only.",
     "Schema:",
-    '{"candidates":[{"type":"preference|goal|constraint|relationship|event|pattern","subject":"string","value":"string","confidence":0.0,"sensitivity":"low|medium|high","explicit":true,"reason":"string"}]}',
+    '{"candidates":[{"type":"preference|goal|constraint|relationship|event|pattern","subject":"string","value":"string","sensitivity":"low|medium|high","explicit":true,"reason":"string"}]}',
     "",
     "Constraints:",
     "- Use only explicit user statements from the evidence below.",
@@ -581,8 +528,7 @@ function parseExtractedCandidates(rawResponse: string): Array<{
   type: MemoryType;
   subject: string;
   value: string;
-  confidence?: number;
-  sensitivity?: MemoryCandidate["sensitivity"];
+  sensitivity?: MemorySensitivity;
   explicit?: boolean;
   reason?: string;
 }> {
@@ -599,7 +545,6 @@ function parseExtractedCandidates(rawResponse: string): Array<{
     const type = readMemoryType(candidate.type);
     const subject = typeof candidate.subject === "string" ? candidate.subject : "";
     const value = typeof candidate.value === "string" ? candidate.value : "";
-    const confidence = typeof candidate.confidence === "number" ? candidate.confidence : undefined;
     const sensitivity = readSensitivity(candidate.sensitivity);
     const explicit = typeof candidate.explicit === "boolean" ? candidate.explicit : undefined;
     const reason = typeof candidate.reason === "string" ? candidate.reason : undefined;
@@ -612,7 +557,6 @@ function parseExtractedCandidates(rawResponse: string): Array<{
       type,
       subject,
       value,
-      confidence,
       sensitivity,
       explicit,
       reason,
@@ -665,7 +609,7 @@ function readMemoryType(value: unknown): MemoryType | null {
     : null;
 }
 
-function readSensitivity(value: unknown): MemoryCandidate["sensitivity"] | undefined {
+function readSensitivity(value: unknown): MemorySensitivity | undefined {
   return value === "low" || value === "medium" || value === "high" ? value : undefined;
 }
 
@@ -675,10 +619,6 @@ function normalizeText(value: string) {
 
 function mergeRefs(current: string[], next: string[]) {
   return [...new Set([...current, ...next])];
-}
-
-function clampConfidence(value: number) {
-  return Math.min(0.99, Math.max(0.1, Number(value.toFixed(2))));
 }
 
 function snapshotMemory(record: MemoryRecord) {
@@ -691,18 +631,17 @@ function snapshotMemory(record: MemoryRecord) {
   };
 }
 
-function snapshotCandidate(record: MemoryCandidate) {
+function snapshotCandidate(record: ExtractedMemoryCandidate) {
   return {
-    id: record.id,
+    sessionId: record.sessionId,
     subject: record.subject,
     value: record.value,
-    status: record.status,
-    updatedAt: record.updatedAt,
+    type: record.type,
   };
 }
 
-function dedupeCandidates(candidates: Array<Omit<MemoryCandidate, "id" | "createdAt" | "updatedAt">>) {
-  const unique = new Map<string, Omit<MemoryCandidate, "id" | "createdAt" | "updatedAt">>();
+function dedupeCandidates(candidates: ExtractedMemoryCandidate[]) {
+  const unique = new Map<string, ExtractedMemoryCandidate>();
   for (const candidate of candidates) {
     const key = `${candidate.type}:${candidate.subject}:${candidate.value}`;
     if (!unique.has(key)) {

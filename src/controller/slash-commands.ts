@@ -53,7 +53,7 @@ export const SLASH_COMMAND_SPECS = [
   {
     name: "memory",
     usage: "/memory",
-    description: "choose a session, then view that session's memories",
+    description: "view workspace long-term memories",
     build: (target) => ({ type: "memory", target }),
   },
   {

@@ -9,7 +9,6 @@ import { SessionStore } from "#src/controller/session-store.js";
 import { AssistantProfileRepository } from "#src/infra/repositories/assistant-profile-repository.js";
 import { EmotionStateRepository } from "#src/infra/repositories/emotion-state-repository.js";
 import { MemoryAuditRepository } from "#src/infra/repositories/memory-audit-repository.js";
-import { MemoryCandidateRepository } from "#src/infra/repositories/memory-candidate-repository.js";
 import { MemoryRecordRepository } from "#src/infra/repositories/memory-record-repository.js";
 import { MessageRepository } from "#src/infra/repositories/message-repository.js";
 import { RunRepository } from "#src/infra/repositories/run-repository.js";
@@ -45,7 +44,6 @@ export function createAppServices(): AppServiceBundle {
   const systemPromptRepository = new SystemPromptRepository(fileStore);
   const emotionStateRepository = new EmotionStateRepository(fileStore);
   const scratchpadRepository = new SessionScratchpadRepository(fileStore);
-  const candidateRepository = new MemoryCandidateRepository(fileStore);
   const memoryRecordRepository = new MemoryRecordRepository(fileStore);
   const memoryAuditRepository = new MemoryAuditRepository(fileStore);
   const assistantProfileRepository = new AssistantProfileRepository(fileStore, config.workspaceRoot);
@@ -59,7 +57,6 @@ export function createAppServices(): AppServiceBundle {
     },
     promptLoader,
     scratchpadRepository,
-    candidateRepository,
     memoryRecordRepository,
     memoryAuditRepository,
   );

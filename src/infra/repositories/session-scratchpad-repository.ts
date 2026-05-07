@@ -36,10 +36,6 @@ function parseSessionScratchpad(value: unknown): SessionScratchpad {
   return {
     sessionId: readString(record.sessionId, "scratchpad.sessionId"),
     currentTask: readOptionalString(record.currentTask, "scratchpad.currentTask"),
-    answerStrategy: readOptionalString(record.answerStrategy, "scratchpad.answerStrategy"),
-    temporaryConstraints: readStringArray(record.temporaryConstraints, "scratchpad.temporaryConstraints"),
-    openQuestions: readStringArray(record.openQuestions, "scratchpad.openQuestions"),
-    discussedOptions: readStringArray(record.discussedOptions, "scratchpad.discussedOptions"),
     recentObservations: readStringArray(record.recentObservations, "scratchpad.recentObservations"),
     toolFindings: readStringArray(record.toolFindings, "scratchpad.toolFindings"),
     updatedAt: readString(record.updatedAt, "scratchpad.updatedAt"),

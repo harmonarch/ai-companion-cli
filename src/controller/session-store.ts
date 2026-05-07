@@ -137,12 +137,12 @@ export class SessionStore {
     return this.createSession();
   }
 
-  deleteMemory(memoryId: string, sessionId?: string) {
-    return this.memoryService.deleteMemory(memoryId, sessionId);
+  deleteMemory(memoryId: string) {
+    return this.memoryService.deleteMemory(memoryId);
   }
 
-  updateMemory(memoryId: string, patch: { subject?: string; value?: string }, sessionId?: string) {
-    return this.memoryService.updateMemory(memoryId, patch, sessionId);
+  updateMemory(memoryId: string, patch: { subject?: string; value?: string }) {
+    return this.memoryService.updateMemory(memoryId, patch);
   }
 
   touchSession(sessionId: string) {
