@@ -1,4 +1,5 @@
 export type MemoryType = "preference" | "goal" | "constraint" | "relationship" | "event" | "pattern";
+export type MemoryTier = "profile" | "episodic";
 export type MemorySensitivity = "low" | "medium" | "high";
 export type MemoryRecordStatus = "active" | "superseded" | "deleted";
 export type MemoryAuditAction = "create" | "reinforce" | "update" | "delete" | "reject" | "confirm" | "supersede";
@@ -12,7 +13,9 @@ export type MemoryPromptDecisionReason =
   | "superseded"
   | "no_query_match"
   | "lower_ranked"
-  | "shadowed_by_newer_exact_match";
+  | "shadowed_by_newer_exact_match"
+  | "expired"
+  | "excluded_episodic_tier";
 
 export interface MemoryScope {
   userId: string;
@@ -31,6 +34,7 @@ export interface MemoryRecord extends MemoryScope {
   id: string;
   sessionId?: string;
   type: MemoryType;
+  tier: MemoryTier;
   subject: string;
   value: string;
   sensitivity: MemorySensitivity;
@@ -41,6 +45,7 @@ export interface MemoryRecord extends MemoryScope {
   lastConfirmedAt?: string;
   lastInjectedAt?: string;
   promptHitCount?: number;
+  expiresAt?: string;
   deletedAt?: string;
   supersededBy?: string;
 }

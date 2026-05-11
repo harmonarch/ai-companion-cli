@@ -53,6 +53,7 @@ export function createAppServices(): AppServiceBundle {
       enabled: config.memory.enabled,
       userId: config.memory.userId,
       autoWriteLowRisk: config.memory.autoWriteLowRisk,
+      episodicTtlHoursDefault: config.memory.episodicTtlHoursDefault,
       workspaceScope: config.workspaceRoot,
     },
     promptLoader,

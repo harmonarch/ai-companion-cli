@@ -40,6 +40,7 @@ export const rawConfigSchema = z.object({
     enabled: z.boolean().optional(),
     userId: z.string().min(1).optional(),
     autoWriteLowRisk: z.boolean().optional(),
+    episodicTtlHoursDefault: z.number().int().positive().optional(),
   }).partial().optional(),
 }).partial();
 
@@ -56,6 +57,7 @@ export interface MemoryConfig {
   enabled: boolean;
   userId: string;
   autoWriteLowRisk: boolean;
+  episodicTtlHoursDefault: number;
 }
 
 export interface AppConfigSetup {
@@ -174,6 +176,9 @@ export function loadConfig(): AppConfig {
       autoWriteLowRisk: readBoolean(process.env.AI_COMPANION_MEMORY_AUTO_WRITE_LOW_RISK)
         ?? fileConfig.memory?.autoWriteLowRisk
         ?? false,
+      episodicTtlHoursDefault: readPositiveInt(process.env.AI_COMPANION_MEMORY_EPISODIC_TTL_HOURS)
+        ?? fileConfig.memory?.episodicTtlHoursDefault
+        ?? 72,
     },
     assistantProfile: readAssistantProfile(storagePath),
     setup,

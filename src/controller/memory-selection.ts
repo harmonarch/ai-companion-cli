@@ -38,6 +38,16 @@ export function selectMemoriesForPrompt(records: MemoryRecord[], query: string):
       continue;
     }
 
+    if (isExpired(record)) {
+      omittedEntries.push(createDecision(record.id, "omitted", "expired"));
+      continue;
+    }
+
+    if (record.tier === "episodic") {
+      omittedEntries.push(createDecision(record.id, "omitted", "excluded_episodic_tier"));
+      continue;
+    }
+
     if (record.sensitivity === "high") {
       omittedEntries.push(createDecision(record.id, "omitted", "high_sensitivity"));
       continue;
@@ -110,12 +120,16 @@ export function normalizeMemoryText(value: string) {
   return value.replace(/\s+/g, " ").trim();
 }
 
+export function isExpired(record: Pick<MemoryRecord, "expiresAt">) {
+  return Boolean(record.expiresAt && record.expiresAt.localeCompare(new Date().toISOString()) <= 0);
+}
+
 function dedupeActiveRecords(records: MemoryRecord[]) {
   const newestByKey = new Map<string, MemoryRecord>();
   const shadowedIds = new Set<string>();
 
   for (const record of records) {
-    if (record.status !== "active" || record.deletedAt || record.supersededBy) {
+    if (record.status !== "active" || record.deletedAt || record.supersededBy || isExpired(record) || record.tier === "episodic") {
       continue;
     }
 

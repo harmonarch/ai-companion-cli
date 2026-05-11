@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { FileStore } from "#src/infra/storage/file-store.js";
-import type { MemoryRecord, MemoryRecordStatus, MemoryScope, MemoryType } from "#src/types/memory.js";
+import type { MemoryRecord, MemoryRecordStatus, MemoryScope, MemoryTier, MemoryType } from "#src/types/memory.js";
 
 export class MemoryRecordRepository {
   constructor(private readonly store: FileStore) {
@@ -79,6 +79,7 @@ function parseMemoryRecord(value: unknown): MemoryRecord {
     workspaceScope: readString(record.workspaceScope, "memory.workspaceScope"),
     sessionId: readOptionalString(record.sessionId, "memory.sessionId"),
     type: readMemoryType(record.type),
+    tier: readTier(record.tier),
     subject: readString(record.subject, "memory.subject"),
     value: readString(record.value, "memory.value"),
     sensitivity: readSensitivity(record.sensitivity),
@@ -89,6 +90,7 @@ function parseMemoryRecord(value: unknown): MemoryRecord {
     lastConfirmedAt: readOptionalString(record.lastConfirmedAt, "memory.lastConfirmedAt"),
     lastInjectedAt: readOptionalString(record.lastInjectedAt, "memory.lastInjectedAt"),
     promptHitCount: readOptionalNumber(record.promptHitCount, "memory.promptHitCount") ?? 0,
+    expiresAt: readOptionalString(record.expiresAt, "memory.expiresAt"),
     deletedAt: readOptionalString(record.deletedAt, "memory.deletedAt"),
     supersededBy: readOptionalString(record.supersededBy, "memory.supersededBy"),
   };
@@ -99,6 +101,16 @@ function readMemoryType(value: unknown) {
     return value;
   }
   throw new Error("Invalid memory type");
+}
+
+function readTier(value: unknown): MemoryTier {
+  if (value === undefined || value === null) {
+    return "profile";
+  }
+  if (value === "profile" || value === "episodic") {
+    return value;
+  }
+  throw new Error("Invalid memory tier");
 }
 
 function readSensitivity(value: unknown) {

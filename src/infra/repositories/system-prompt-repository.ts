@@ -164,6 +164,8 @@ function readDecisionReason(value: unknown, field: string): MemoryPromptDecision
     || value === "no_query_match"
     || value === "lower_ranked"
     || value === "shadowed_by_newer_exact_match"
+    || value === "expired"
+    || value === "excluded_episodic_tier"
   ) {
     return value;
   }

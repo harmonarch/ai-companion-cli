@@ -2,6 +2,7 @@ import React from "react";
 import { Box, Text } from "ink";
 import pc from "picocolors";
 import type { MemoryEditState } from "#src/app/ui-state.js";
+import { isExpired } from "#src/controller/memory-selection.js";
 import type { MemoryDetailRecord, MemoryPromptUsageRecord } from "#src/types/memory.js";
 import { sanitizeSingleLineText } from "#src/utils/sanitize-text.js";
 
@@ -27,7 +28,7 @@ export function MemoryList({
     return (
       <Box flexDirection="column">
         <Text>{pc.gray("memory · workspace")}</Text>
-        <Text>{pc.gray("No long-term memories in this workspace.")}</Text>
+        <Text>{pc.gray("No memories in this workspace.")}</Text>
         <Text>{pc.gray(escapeHint)}</Text>
       </Box>
     );
@@ -51,6 +52,11 @@ export function MemoryList({
         const value = sanitizeSingleLineText(memory.value, 80);
         const timestamp = memory.lastConfirmedAt ?? memory.updatedAt;
         const tone = memory.status === "active" ? pc.green : memory.status === "superseded" ? pc.yellow : pc.white;
+        const tierLabel = memory.tier === "episodic" ? pc.magenta("episodic") : pc.cyan("profile");
+        const expired = isExpired(memory);
+        const expiryLabel = memory.tier === "episodic"
+          ? ` · expires ${memory.expiresAt ?? "unknown"}${expired ? " · expired" : ""}`
+          : "";
         const visibleEvidence = evidence.slice(0, MAX_EVIDENCE_ITEMS);
         const remainingEvidenceCount = Math.max(0, evidence.length - visibleEvidence.length);
         const visiblePromptUsage = promptDecisions.slice(0, MAX_PROMPT_USAGE_ITEMS);
@@ -59,7 +65,7 @@ export function MemoryList({
         return (
           <Box key={memory.id} flexDirection="column" marginBottom={1}>
             <Text>
-              {selected ? pc.cyan(">") : " "} {selected ? pc.whiteBright(subject) : subject} {pc.gray(`· ${memory.type} · ${tone(memory.status)} · ${timestamp}`)}
+              {selected ? pc.cyan(">") : " "} {selected ? pc.whiteBright(subject) : subject} {pc.gray(`· ${memory.type} · `)}{tierLabel}{pc.gray(` · ${tone(memory.status)} · ${timestamp}${expiryLabel}`)}
             </Text>
             <Text>{pc.gray(`  ${value}`)}</Text>
             {confirmingDelete ? <Text>{pc.yellow("  Delete this memory? Enter confirm · Esc cancel")}</Text> : null}
@@ -69,6 +75,8 @@ export function MemoryList({
                 <Text>{pc.gray(`  evidence ${memory.sourceRefs.length}`)}</Text>
                 <Text>{pc.gray(`  created ${memory.createdAt}`)}</Text>
                 <Text>{pc.gray(`  updated ${memory.updatedAt}`)}</Text>
+                <Text>{pc.gray(`  tier ${memory.tier}`)}</Text>
+                {memory.tier === "episodic" ? <Text>{pc.gray(`  expires ${memory.expiresAt ?? "unknown"}${expired ? " · expired" : ""}`)}</Text> : null}
                 {editState?.memoryId === memory.id ? (
                   <>
                     <Text>{editState.activeField === "subject" ? pc.cyan("  subject>") : pc.gray("  subject ")}<EditableField value={editState.subject.value} cursorIndex={editState.subject.cursorIndex} active={editState.activeField === "subject"} /></Text>

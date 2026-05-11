@@ -10,6 +10,7 @@ import type { RunRecord } from "#src/types/run.js";
 import type {
   MemoryRecord,
   MemoryScope,
+  MemoryTier,
   MemoryType,
   SessionScratchpad,
   MemorySensitivity,
@@ -24,6 +25,7 @@ interface MemoryServiceConfig {
   enabled: boolean;
   userId: string;
   autoWriteLowRisk: boolean;
+  episodicTtlHoursDefault: number;
   workspaceScope: string;
 }
 
@@ -39,6 +41,7 @@ interface ProcessTurnInput {
 interface ExtractedMemoryCandidate extends MemoryScope {
   sessionId: string;
   type: MemoryType;
+  tier: MemoryTier;
   subject: string;
   value: string;
   sensitivity: MemorySensitivity;
@@ -282,6 +285,7 @@ export class MemoryService {
       if (outcome.kind === "duplicate") {
         const updated = this.memoryRecordRepository.update(outcome.record.id, {
           lastConfirmedAt: input.assistantMessage.createdAt,
+          expiresAt: getNextExpiration(candidate, this.config.episodicTtlHoursDefault),
           sourceRefs: mergeRefs(outcome.record.sourceRefs, candidate.evidenceRefs),
         });
         this.memoryAuditRepository.create({
@@ -303,7 +307,7 @@ export class MemoryService {
 
       if (outcome.kind === "update") {
         const created = this.memoryRecordRepository.create({
-          ...candidateToRecord(candidate),
+          ...candidateToRecord(candidate, this.config.episodicTtlHoursDefault),
           status: "active",
           lastConfirmedAt: input.assistantMessage.createdAt,
           promptHitCount: 0,
@@ -343,7 +347,7 @@ export class MemoryService {
       }
 
       const created = this.memoryRecordRepository.create({
-        ...candidateToRecord(candidate),
+        ...candidateToRecord(candidate, this.config.episodicTtlHoursDefault),
         status: "active",
         lastConfirmedAt: input.assistantMessage.createdAt,
         promptHitCount: 0,
@@ -404,6 +408,7 @@ export class MemoryService {
           ...this.getScope(),
           sessionId: input.session.id,
           type: candidate.type,
+          tier: getTierForType(candidate.type),
           subject: normalizeText(candidate.subject).slice(0, 120),
           value: normalizeText(candidate.value).slice(0, 280),
           sensitivity: candidate.sensitivity ?? "low",
@@ -474,15 +479,17 @@ function reject(reason: string): ConsolidationOutcome {
   return { kind: "reject", reason };
 }
 
-function candidateToRecord(candidate: ExtractedMemoryCandidate) {
+function candidateToRecord(candidate: ExtractedMemoryCandidate, episodicTtlHoursDefault: number) {
   return {
     userId: candidate.userId,
     workspaceScope: candidate.workspaceScope,
     sessionId: candidate.sessionId,
     type: candidate.type,
+    tier: candidate.tier,
     subject: candidate.subject,
     value: candidate.value,
     sensitivity: candidate.sensitivity,
+    expiresAt: getNextExpiration(candidate, episodicTtlHoursDefault),
     sourceRefs: candidate.evidenceRefs,
   };
 }
@@ -519,6 +526,8 @@ function buildExtractionPrompt({
     "- Keep candidates sparse; return an empty array when unsure.",
     "- Do not infer hidden traits or identity.",
     "- Put short-lived items in event or pattern, not profile-style preference.",
+    "- Treat one-off plans, same-day arrangements, and casual social outings as event candidates.",
+    "- Do not rewrite temporary social context into long-term preferences or relationship facts.",
     "",
     "Evidence:",
     `User message (${userMessage.createdAt}): ${normalizeText(messageContentToPlainText(userMessage.content))}`,
@@ -629,9 +638,11 @@ function mergeRefs(current: string[], next: string[]) {
 function snapshotMemory(record: MemoryRecord) {
   return {
     id: record.id,
+    tier: record.tier,
     subject: record.subject,
     value: record.value,
     status: record.status,
+    expiresAt: record.expiresAt,
     updatedAt: record.updatedAt,
   };
 }
@@ -639,6 +650,7 @@ function snapshotMemory(record: MemoryRecord) {
 function snapshotCandidate(record: ExtractedMemoryCandidate) {
   return {
     sessionId: record.sessionId,
+    tier: record.tier,
     subject: record.subject,
     value: record.value,
     type: record.type,
@@ -654,4 +666,25 @@ function dedupeCandidates(candidates: ExtractedMemoryCandidate[]) {
     }
   }
   return [...unique.values()];
+}
+
+function getTierForType(type: MemoryType): MemoryTier {
+  switch (type) {
+    case "event":
+    case "pattern":
+      return "episodic";
+    case "preference":
+    case "goal":
+    case "constraint":
+    case "relationship":
+      return "profile";
+  }
+}
+
+function getNextExpiration(candidate: ExtractedMemoryCandidate, episodicTtlHoursDefault: number) {
+  if (candidate.tier !== "episodic") {
+    return undefined;
+  }
+
+  return new Date(Date.now() + (episodicTtlHoursDefault * 60 * 60 * 1000)).toISOString();
 }
